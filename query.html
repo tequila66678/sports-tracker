@@ -202,7 +202,7 @@
       <h3>学生登录</h3>
       <input id="loginId" placeholder="请输入学号">
       <input id="loginPwd" type="password" placeholder="请输入密码">
-      <button class="btn" id="btnLogin">登 录</button>
+      <button class="btn" id="btnLogin" onclick="doLogin()">登 录</button>
     </div>
 
     <!-- 仪表盘（登录后显示） -->
@@ -255,12 +255,16 @@
   <script src="utils.js"></script>
 
   <script>
-  (function () {
     var U = window.SportsUtils;
     var currentStudent = null;
     var allProjects = {};
-    var recordGroups = {}; // projectId → sorted records
+    var recordGroups = {};
     var chartInstance = null;
+
+    // 页面加载检测
+    if (!window.supabase) {
+      document.write('<div style="text-align:center;padding:40px;color:red;">Supabase SDK 加载失败，请检查网络</div>');
+    }
 
     // ---- 初始化 ----
     async function init() {
@@ -270,40 +274,38 @@
       projList.forEach(function (p) { allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better }; });
     }
 
-    // ---- 登录 ----
-    document.getElementById('btnLogin').addEventListener('click', async function () {
+    // ---- 登录（全局函数，由按钮 onclick 调用）----
+    async function doLogin() {
       var sid = document.getElementById('loginId').value.trim();
       var pwd = document.getElementById('loginPwd').value.trim();
+      var btn = document.getElementById('btnLogin');
+
       if (!sid || !pwd) { showToast('请输入学号和密码', 'error'); return; }
 
-      var btn = this;
       btn.disabled = true;
       btn.textContent = '登录中...';
 
       try {
-        // 直接查询 Supabase，绕过 sbFind 看具体错误
+        if (!window.supabase) throw new Error('Supabase 库未加载，请刷新页面试试');
+
         var result = await window.supabase
           .createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
           .from('Student')
           .select('*')
           .eq('student_id', sid);
 
-        if (result.error) {
-          throw new Error('数据库连接失败: ' + result.error.message + '（请检查 RLS 是否已关闭）');
-        }
+        if (result.error) throw new Error('数据库连接失败: ' + result.error.message);
+        if (!result.data || result.data.length === 0) throw new Error('学号「' + sid + '」不存在，请先由教师录入该学生');
 
-        var students = result.data || [];
-        if (students.length === 0) throw new Error('学号「' + sid + '」不存在，请先由教师录入该学生');
-        var stu = students[0];
+        var stu = result.data[0];
+        if (stu.password !== pwd) throw new Error('密码错误');
 
-        if (stu.password !== pwd) throw new Error('密码错误，学号「' + sid + '」对应的密码不正确');
-
-        // 更新本地数据
+        // 加载项目
         allProjects = {};
         try {
           var projList = await U.sbFind('Project', {});
           projList.forEach(function (p) { allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better }; });
-        } catch (e) { /* 项目加载可稍后再试 */ }
+        } catch (e) { /* */ }
 
         currentStudent = { id: stu.id, name: stu.name, class: stu.class, studentId: stu.student_id, gender: stu.gender };
         document.getElementById('loginCard').style.display = 'none';
@@ -311,13 +313,14 @@
         document.getElementById('studentInfo').innerHTML = currentStudent.name + ' <span>' + currentStudent.class + ' · ' + currentStudent.studentId + ' · ' + (currentStudent.gender || '') + '</span>';
 
         await loadRecords();
+        showToast('登录成功！', 'success');
       } catch (err) {
         showToast(err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.textContent = '登 录';
       }
-    });
+    }
 
     // ---- 退出 ----
     document.getElementById('btnLogout').addEventListener('click', function () {
@@ -679,7 +682,6 @@
     }
 
     init().catch(function (e) { showToast('初始化失败：' + e.message, 'error'); });
-  })();
   </script>
 </body>
 </html>
