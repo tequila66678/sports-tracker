@@ -281,10 +281,29 @@
       btn.textContent = '登录中...';
 
       try {
-        var students = await U.sbFind('Student', { student_id: sid });
-        if (students.length === 0) throw new Error('学号不存在');
+        // 直接查询 Supabase，绕过 sbFind 看具体错误
+        var result = await window.supabase
+          .createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey)
+          .from('Student')
+          .select('*')
+          .eq('student_id', sid);
+
+        if (result.error) {
+          throw new Error('数据库连接失败: ' + result.error.message + '（请检查 RLS 是否已关闭）');
+        }
+
+        var students = result.data || [];
+        if (students.length === 0) throw new Error('学号「' + sid + '」不存在，请先由教师录入该学生');
         var stu = students[0];
-        if (stu.password !== pwd) throw new Error('密码错误');
+
+        if (stu.password !== pwd) throw new Error('密码错误，学号「' + sid + '」对应的密码不正确');
+
+        // 更新本地数据
+        allProjects = {};
+        try {
+          var projList = await U.sbFind('Project', {});
+          projList.forEach(function (p) { allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better }; });
+        } catch (e) { /* 项目加载可稍后再试 */ }
 
         currentStudent = { id: stu.id, name: stu.name, class: stu.class, studentId: stu.student_id, gender: stu.gender };
         document.getElementById('loginCard').style.display = 'none';
