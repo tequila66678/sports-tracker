@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学生管理 - 中学体育成绩追踪</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: #f0f4f8; min-height: 100vh; color: #333;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+    .topbar a { text-decoration: none; color: #2c5364; font-size: 14px; padding: 6px 14px; border-radius: 20px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .topbar h2 { font-size: 22px; color: #1a1a2e; }
+
+    /* ---- 登录 ---- */
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 36px 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      text-align: center; max-width: 400px; margin: 60px auto 0;
+    }
+    .login-card h3 { font-size: 20px; margin-bottom: 20px; color: #2c5364; }
+    .login-card input { width: 100%; padding: 12px 16px; font-size: 15px; border: 1.5px solid #dde4ed; border-radius: 10px; background: #fafbfc; margin-bottom: 12px; }
+    .login-card input:focus { outline: none; border-color: #2c5364; }
+    .login-card .hint { font-size: 12px; color: #bbb; margin-bottom: 16px; }
+
+    .btn {
+      display: inline-block; padding: 12px 24px; font-size: 15px; font-weight: 600;
+      border: none; border-radius: 10px; cursor: pointer; color: #fff;
+      background: linear-gradient(135deg, #2c5364, #203a43); transition: transform 0.1s;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+    .btn-outline { background: #fff; color: #2c5364; border: 1.5px solid #2c5364; }
+    .btn-danger { background: #e74c3c; }
+    .btn-green { background: #11998e; }
+
+    /* ---- 仪表盘 ---- */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    .bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-radius: 14px; padding: 14px 20px;
+      margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .bar .title { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+
+    /* ---- 工具栏 ---- */
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .toolbar input[type="text"] {
+      flex: 1; min-width: 160px; padding: 10px 14px; font-size: 14px;
+      border: 1.5px solid #dde4ed; border-radius: 10px; background: #fff;
+    }
+    .toolbar input[type="text"]:focus { outline: none; border-color: #2c5364; }
+    .file-input-wrap { position: relative; overflow: hidden; display: inline-block; }
+    .file-input-wrap input[type="file"] {
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+    }
+
+    /* ---- 学生表格 ---- */
+    .student-tbl-wrap {
+      background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow-x: auto;
+    }
+    .student-tbl {
+      width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px;
+    }
+    .student-tbl th, .student-tbl td { padding: 11px 10px; border-bottom: 1px solid #eee; text-align: center; }
+    .student-tbl th { color: #888; font-weight: 500; background: #fafbfc; font-size: 12px; }
+    .student-tbl tbody tr:hover { background: #f5f9fc; }
+    .student-tbl .name-col { font-weight: 600; text-align: left; }
+
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: 500;
+    }
+    .badge.male { background: #e0f0ff; color: #2980b9; }
+    .badge.female { background: #ffe0ec; color: #c0392b; }
+    .badge.records { background: #e6fff0; color: #11998e; }
+
+    .action-btn { padding: 5px 12px; font-size: 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; margin: 2px; }
+    .action-btn:hover { background: #f0f0f0; }
+    .action-btn.danger { color: #e74c3c; border-color: #e74c3c; }
+    .action-btn.danger:hover { background: #fde8e8; }
+
+    /* ---- 模态框 ---- */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: #fff; border-radius: 16px; padding: 28px 24px; width: 90%; max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2); animation: fadeIn 0.2s;
+    }
+    .modal h3 { color: #2c5364; margin-bottom: 18px; }
+    .modal input, .modal select {
+      width: 100%; padding: 10px 14px; font-size: 14px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; margin-bottom: 12px;
+    }
+    .modal input:focus, .modal select:focus { outline: none; border-color: #2c5364; }
+    .modal .radio-group { display: flex; gap: 16px; margin-bottom: 12px; }
+    .modal .radio-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+    .modal .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+
+    /* ---- 导入结果 ---- */
+    .import-result { display: none; margin-top: 14px; padding: 14px 18px; border-radius: 10px; font-size: 13px; }
+    .import-result.success { display: block; background: #e6fff0; color: #11998e; border: 1px solid #b7ebd0; }
+    .import-result.error { display: block; background: #fde8e8; color: #c0392b; border: 1px solid #f5c6c6; }
+
+    /* ---- Toast ---- */
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px; z-index: 999; animation: fadeIn 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    @media (max-width: 480px) {
+      .student-tbl { font-size: 12px; }
+      .student-tbl th, .student-tbl td { padding: 8px 5px; }
+      .toolbar { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a href="index.html">← 首页</a>
+      <h2>👥 学生管理</h2>
+    </div>
+
+    <!-- 登录 -->
+    <div class="login-card" id="loginCard">
+      <h3>教师验证</h3>
+      <input id="teacherPwd" type="password" placeholder="请输入教师口令">
+      <div class="hint">默认口令：teacher123</div>
+      <button class="btn" id="btnLogin" style="width:100%">验 证</button>
+    </div>
+
+    <!-- 仪表盘 -->
+    <div class="dashboard" id="dashboard">
+      <div class="bar">
+        <span class="title">👥 学生管理</span>
+        <button class="btn btn-sm btn-outline" id="btnLogout">退出</button>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="toolbar">
+        <input type="text" id="searchInput" placeholder="🔍 搜索姓名 / 学号 / 班级...">
+        <button class="btn btn-sm" id="btnAdd">+ 添加学生</button>
+        <span class="file-input-wrap">
+          <button class="btn btn-sm btn-green">📥 Excel 导入</button>
+          <input type="file" id="excelFile" accept=".xlsx,.xls">
+        </span>
+        <button class="btn btn-sm btn-outline" id="btnTemplate">📄 下载模板</button>
+      </div>
+
+      <div class="import-result" id="importResult"></div>
+
+      <div id="studentCount" style="font-size:13px;color:#aaa;margin-bottom:8px;"></div>
+
+      <!-- 学生表格 -->
+      <div class="student-tbl-wrap">
+        <table class="student-tbl">
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>班级</th>
+              <th>学号</th>
+              <th>性别</th>
+              <th>密码</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="studentTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 编辑/添加模态框 -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal">
+        <h3 id="modalTitle">编辑学生</h3>
+        <input type="hidden" id="editId">
+        <label style="font-size:13px;color:#888;">姓名</label>
+        <input id="editName" placeholder="如：张三">
+        <label style="font-size:13px;color:#888;">班级</label>
+        <input id="editClass" placeholder="如：初三1班">
+        <label style="font-size:13px;color:#888;">学号</label>
+        <input id="editSid" placeholder="学号">
+        <label style="font-size:13px;color:#888;">性别</label>
+        <div class="radio-group">
+          <label><input type="radio" name="editGender" value="男"> 男</label>
+          <label><input type="radio" name="editGender" value="女"> 女</label>
+        </div>
+        <label style="font-size:13px;color:#888;">查询密码</label>
+        <input id="editPwd" placeholder="供学生查询用的密码">
+        <div class="btn-row">
+          <button class="btn btn-sm btn-outline" id="btnModalCancel">取消</button>
+          <button class="btn btn-sm" id="btnModalSave">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+
+  <script>
+  (function () {
+    var U = window.SportsUtils;
+    var allStudents = [];
+
+    // ---- 初始化 ----
+    async function init() {
+      try { await U.initDefaultData(); } catch (e) { /* ok */ }
+    }
+
+    // ---- 登录 ----
+    document.getElementById('btnLogin').addEventListener('click', async function () {
+      var pwd = document.getElementById('teacherPwd').value.trim();
+      if (!pwd) { showToast('请输入教师口令', 'error'); return; }
+      this.disabled = true; this.textContent = '验证中...';
+      try {
+        var ok = await U.verifyTeacherPassword(pwd);
+        if (!ok) throw new Error('口令错误');
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('dashboard').classList.add('active');
+        await loadStudents();
+      } catch (err) { showToast(err.message, 'error'); }
+      finally { this.disabled = false; this.textContent = '验 证'; }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', function () {
+      document.getElementById('loginCard').style.display = '';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('teacherPwd').value = '';
+      allStudents = [];
+    });
+
+    // ---- 加载学生 ----
+    async function loadStudents() {
+      allStudents = await U.sbFind('Student', {}, { ascending: 'name' });
+      renderTable(allStudents);
+    }
+
+    function renderTable(students) {
+      var tbody = document.getElementById('studentTbody');
+      tbody.innerHTML = '';
+      document.getElementById('studentCount').textContent = '共 ' + students.length + ' 名学生';
+
+      if (students.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:40px;color:#aaa;">暂无学生数据</td></tr>';
+        return;
+      }
+
+      students.forEach(function (s) {
+        var genderBadge = s.gender === '男' ? '<span class="badge male">男</span>' : '<span class="badge female">女</span>';
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="name-col">' + (s.name || '') + '</td>' +
+          '<td>' + (s.class || '') + '</td>' +
+          '<td>' + (s.student_id || '') + '</td>' +
+          '<td>' + genderBadge + '</td>' +
+          '<td>' + (s.password || '****') + '</td>' +
+          '<td>' +
+            '<button class="action-btn" data-action="edit" data-id="' + s.id + '">✏️ 编辑</button>' +
+            '<button class="action-btn danger" data-action="delete" data-id="' + s.id + '">🗑 删除</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+
+      // 绑定操作按钮
+      tbody.querySelectorAll('[data-action="edit"]').forEach(function (btn) {
+        btn.addEventListener('click', function () { openEditModal(this.dataset.id); });
+      });
+      tbody.querySelectorAll('[data-action="delete"]').forEach(function (btn) {
+        btn.addEventListener('click', function () { deleteStudent(this.dataset.id); });
+      });
+    }
+
+    // ---- 搜索 ----
+    document.getElementById('searchInput').addEventListener('input', function () {
+      var q = this.value.trim().toLowerCase();
+      if (!q) { renderTable(allStudents); return; }
+      var filtered = allStudents.filter(function (s) {
+        return (s.name || '').toLowerCase().indexOf(q) >= 0 ||
+               (s.student_id || '').toLowerCase().indexOf(q) >= 0 ||
+               (s.class || '').toLowerCase().indexOf(q) >= 0;
+      });
+      renderTable(filtered);
+    });
+
+    // ---- 添加 ----
+    document.getElementById('btnAdd').addEventListener('click', function () {
+      document.getElementById('modalTitle').textContent = '添加学生';
+      document.getElementById('editId').value = '';
+      document.getElementById('editName').value = '';
+      document.getElementById('editClass').value = '';
+      document.getElementById('editSid').value = '';
+      document.getElementById('editPwd').value = '';
+      document.querySelector('input[name="editGender"][value="男"]').checked = true;
+      document.getElementById('editModal').classList.add('active');
+    });
+
+    // ---- 编辑 ----
+    function openEditModal(id) {
+      var s = allStudents.find(function (x) { return x.id === id; });
+      if (!s) return;
+      document.getElementById('modalTitle').textContent = '编辑学生';
+      document.getElementById('editId').value = s.id;
+      document.getElementById('editName').value = s.name || '';
+      document.getElementById('editClass').value = s.class || '';
+      document.getElementById('editSid').value = s.student_id || '';
+      document.getElementById('editPwd').value = '';
+      var genderRadio = document.querySelector('input[name="editGender"][value="' + (s.gender || '男') + '"]');
+      if (genderRadio) genderRadio.checked = true;
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    // ---- 保存 ----
+    document.getElementById('btnModalSave').addEventListener('click', async function () {
+      var id = document.getElementById('editId').value;
+      var name = document.getElementById('editName').value.trim();
+      var cls = document.getElementById('editClass').value.trim();
+      var sid = document.getElementById('editSid').value.trim();
+      var pwd = document.getElementById('editPwd').value.trim();
+      var genderRadio = document.querySelector('input[name="editGender"]:checked');
+      var gender = genderRadio ? genderRadio.value : '男';
+
+      if (!name || !cls || !sid) { showToast('姓名、班级、学号为必填', 'error'); return; }
+
+      this.disabled = true;
+      try {
+        if (id) {
+          // 编辑
+          var updateData = { name: name, class: cls, student_id: sid, gender: gender };
+          if (pwd) updateData.password = pwd;
+          await U.sbUpdate('Student', id, updateData);
+          showToast('学生信息已更新', 'success');
+        } else {
+          // 添加
+          if (!pwd) { showToast('请设置查询密码', 'error'); this.disabled = false; return; }
+          // 检查学号唯一
+          var exist = await U.sbFind('Student', { student_id: sid });
+          if (exist.length > 0) { showToast('该学号已存在', 'error'); this.disabled = false; return; }
+          await U.sbCreate('Student', { name: name, class: cls, student_id: sid, password: pwd, gender: gender });
+          showToast('学生已添加', 'success');
+        }
+        document.getElementById('editModal').classList.remove('active');
+        await loadStudents();
+      } catch (err) { showToast('保存失败：' + err.message, 'error'); }
+      finally { this.disabled = false; }
+    });
+
+    document.getElementById('btnModalCancel').addEventListener('click', function () {
+      document.getElementById('editModal').classList.remove('active');
+    });
+
+    // ---- 删除 ----
+    async function deleteStudent(id) {
+      if (!confirm('确定要删除该学生及其所有成绩记录吗？此操作不可撤销。')) return;
+      try {
+        var s = allStudents.find(function (x) { return x.id === id; });
+        if (s) {
+          var records = await U.sbFind('TestRecord', { student_id: s.student_id });
+          for (var i = 0; i < records.length; i++) {
+            await U.sbDelete('TestRecord', records[i].id);
+          }
+        }
+        await U.sbDelete('Student', id);
+        showToast('学生已删除', 'success');
+        await loadStudents();
+      } catch (err) { showToast('删除失败：' + err.message, 'error'); }
+    }
+
+    // ---- Excel 导入 ----
+    document.getElementById('excelFile').addEventListener('change', async function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      var resultDiv = document.getElementById('importResult');
+      resultDiv.className = 'import-result';
+      resultDiv.textContent = '';
+
+      try {
+        var data = await readExcel(file);
+        if (!data || data.length === 0) throw new Error('文件中没有数据');
+
+        var headers = Object.keys(data[0]);
+        var nameCol = headers.find(function (h) { return h.indexOf('姓名') >= 0 || h.indexOf('名字') >= 0 || h.toLowerCase() === 'name'; });
+        var classCol = headers.find(function (h) { return h.indexOf('班级') >= 0 || h.toLowerCase() === 'class'; });
+        var sidCol = headers.find(function (h) { return h.indexOf('学号') >= 0 || h.toLowerCase() === 'id' || h.indexOf('student') >= 0; });
+        var genderCol = headers.find(function (h) { return h.indexOf('性别') >= 0 || h.toLowerCase() === 'gender'; });
+        var pwdCol = headers.find(function (h) { return h.indexOf('密码') >= 0 || h.toLowerCase() === 'password'; });
+
+        if (!nameCol || !classCol || !sidCol) {
+          throw new Error('请确保 Excel 包含列：姓名、班级、学号（性别和密码为可选列）');
+        }
+
+        var successCount = 0;
+        var failCount = 0;
+        var errors = [];
+
+        for (var i = 0; i < data.length; i++) {
+          var row = data[i];
+          var name = String(row[nameCol] || '').trim();
+          var cls = String(row[classCol] || '').trim();
+          var sid = String(row[sidCol] || '').trim();
+          var gender = genderCol ? String(row[genderCol] || '').trim() : '';
+          var pwd = pwdCol ? String(row[pwdCol] || '').trim() : '123456';
+
+          if (!name || !cls || !sid) { failCount++; errors.push('第' + (i + 2) + '行：信息不完整'); continue; }
+          if (gender !== '男' && gender !== '女') gender = '男';
+          if (!pwd) pwd = '123456';
+
+          try {
+            var exist = await U.sbFind('Student', { student_id: sid });
+            if (exist.length > 0) {
+              // 更新已有学生
+              await U.sbUpdate('Student', exist[0].id, { name: name, class: cls, gender: gender });
+            } else {
+              await U.sbCreate('Student', { name: name, class: cls, student_id: sid, password: pwd, gender: gender });
+            }
+            successCount++;
+          } catch (err) {
+            failCount++;
+            errors.push('第' + (i + 2) + '行：' + err.message);
+          }
+        }
+
+        resultDiv.className = 'import-result success';
+        resultDiv.innerHTML = '✅ 导入完成：成功 ' + successCount + ' 条' + (failCount > 0 ? '，失败 ' + failCount + ' 条' : '');
+        if (errors.length > 0) resultDiv.innerHTML += '<br>' + errors.slice(0, 5).join('<br>');
+
+        await loadStudents();
+      } catch (err) {
+        resultDiv.className = 'import-result error';
+        resultDiv.textContent = '导入失败：' + err.message;
+      }
+
+      e.target.value = '';
+    });
+
+    function readExcel(file) {
+      return new Promise(function (resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            var workbook = XLSX.read(e.target.result, { type: 'array' });
+            var sheet = workbook.Sheets[workbook.SheetNames[0]];
+            var data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+            resolve(data);
+          } catch (err) { reject(err); }
+        };
+        reader.onerror = function () { reject(new Error('文件读取失败')); };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // ---- 下载模板 ----
+    document.getElementById('btnTemplate').addEventListener('click', function () {
+      var ws_data = [
+        ['姓名', '班级', '学号', '性别', '密码'],
+        ['张三', '初三1班', '2024001', '男', '123456'],
+        ['李四', '初三1班', '2024002', '女', '123456'],
+      ];
+      var ws = XLSX.utils.aoa_to_sheet(ws_data);
+      ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 6 }, { wch: 10 }];
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '学生信息');
+      XLSX.writeFile(wb, '学生导入模板.xlsx');
+    });
+
+    function showToast(msg, type) {
+      var t = document.createElement('div');
+      t.className = 'toast ' + (type || 'success');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2800);
+    }
+
+    init().catch(function (e) { showToast('初始化失败：' + e.message, 'error'); });
+  })();
+  </script>
+</body>
+</html>
