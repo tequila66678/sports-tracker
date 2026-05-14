@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中学体育成绩追踪系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #0f2027 0%, #203a43 40%, #2c5364 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    /* ---- 头部 ---- */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .header .icon {
+      font-size: 56px;
+      margin-bottom: 8px;
+    }
+    .header h1 {
+      font-size: clamp(24px, 5vw, 36px);
+      color: #fff;
+      letter-spacing: 2px;
+    }
+    .header p {
+      color: rgba(255,255,255,0.7);
+      margin-top: 8px;
+      font-size: 15px;
+    }
+
+    /* ---- 卡片网格 ---- */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 16px;
+      padding: 36px 24px 28px;
+      text-align: center;
+      text-decoration: none;
+      color: #333;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.28);
+    }
+    .card .emoji {
+      font-size: 48px;
+      line-height: 1;
+    }
+    .card h3 {
+      font-size: 20px;
+      color: #1a1a2e;
+    }
+    .card p {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    /* ---- 页脚 ---- */
+    .footer {
+      text-align: center;
+      margin-top: 56px;
+      color: rgba(255,255,255,0.45);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="icon">🏃‍♂️</div>
+      <h1>中学体育成绩追踪系统</h1>
+      <p>宁波市体育中考 · 成绩录入 · 智能分析 · 训练建议</p>
+    </header>
+
+    <nav class="card-grid">
+      <a class="card" href="add.html">
+        <span class="emoji">📝</span>
+        <h3>成绩录入</h3>
+        <p>教师端：录入学生体育测试成绩，自动换算得分</p>
+      </a>
+      <a class="card" href="query.html">
+        <span class="emoji">🔍</span>
+        <h3>成绩查询</h3>
+        <p>学生 / 家长端：查看个人成绩趋势与训练建议</p>
+      </a>
+      <a class="card" href="teacher.html">
+        <span class="emoji">📊</span>
+        <h3>班级分析</h3>
+        <p>教师端：全班成绩统计、分布图表与对比分析</p>
+      </a>
+      <a class="card" href="settings.html">
+        <span class="emoji">⚙️</span>
+        <h3>系统设置</h3>
+        <p>评分标准管理、教师口令修改</p>
+      </a>
+    </nav>
+
+    <footer class="footer">
+      中学体育成绩追踪与智能训练建议 · 基于 LeanCloud + Chart.js
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩查询 - 中学体育成绩追踪</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: #f0f4f8; min-height: 100vh; color: #333;
+    }
+
+    .container { max-width: 750px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* ---- 顶栏 ---- */
+    .topbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    }
+    .topbar a {
+      text-decoration: none; color: #2c5364; font-size: 14px;
+      padding: 6px 14px; border-radius: 20px; background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .topbar h2 { font-size: 22px; color: #1a1a2e; }
+
+    /* ---- 登录卡片 ---- */
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 36px 28px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center;
+    }
+    .login-card h3 { font-size: 20px; margin-bottom: 20px; color: #2c5364; }
+    .login-card input {
+      width: 100%; padding: 12px 16px; font-size: 15px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; margin-bottom: 12px;
+    }
+    .login-card input:focus { outline: none; border-color: #2c5364; }
+
+    .btn {
+      display: block; width: 100%; padding: 14px; font-size: 16px;
+      font-weight: 600; letter-spacing: 1px; border: none; border-radius: 12px;
+      cursor: pointer; color: #fff; background: linear-gradient(135deg, #2c5364, #203a43);
+      transition: transform 0.1s;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- 仪表盘 ---- */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    .student-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-radius: 14px; padding: 16px 20px;
+      margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .student-bar .info { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+    .student-bar .info span { font-weight: 400; color: #888; font-size: 14px; }
+    .btn-sm {
+      padding: 8px 18px; font-size: 13px; border-radius: 20px;
+      border: 1.5px solid #2c5364; background: #fff; color: #2c5364;
+      cursor: pointer; font-weight: 500;
+    }
+
+    /* ---- 项目卡片网格 ---- */
+    .card-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px; margin-bottom: 24px;
+    }
+    @media (max-width: 400px) {
+      .card-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .score-card {
+      background: #fff; border-radius: 14px; padding: 20px 16px;
+      text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+      border: 2px solid transparent;
+    }
+    .score-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+    .score-card.selected { border-color: #2c5364; }
+
+    .score-card .proj-name { font-size: 13px; color: #888; margin-bottom: 6px; }
+    .score-card .big-score {
+      font-size: 36px; font-weight: 700;
+    }
+    .score-card .big-score.green { color: #11998e; }
+    .score-card .big-score.yellow { color: #f2994a; }
+    .score-card .big-score.red { color: #e74c3c; }
+    .score-card .big-score.gray { color: #ccc; }
+
+    .score-card .sub-info { font-size: 12px; color: #aaa; margin-top: 4px; }
+    .score-card .trend { font-size: 13px; margin-top: 4px; }
+
+    /* ---- 详情区 ---- */
+    .detail-section {
+      background: #fff; border-radius: 14px; padding: 24px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 20px;
+      display: none;
+    }
+    .detail-section.active { display: block; }
+    .detail-section h3 { color: #2c5364; margin-bottom: 16px; }
+
+    .chart-wrap {
+      position: relative; width: 100%; max-height: 280px;
+      margin-bottom: 20px;
+    }
+    canvas { width: 100% !important; }
+
+    /* ---- 建议列表 ---- */
+    .advice-list { list-style: none; }
+    .advice-list li {
+      padding: 10px 14px; margin-bottom: 8px; border-radius: 10px;
+      background: #f8fafb; font-size: 14px; line-height: 1.6;
+    }
+    .advice-list li.warn { background: #fef3e2; border-left: 3px solid #f2994a; }
+    .advice-list li.good { background: #e6fff0; border-left: 3px solid #11998e; }
+
+    /* ---- 历史表格 ---- */
+    .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tbl th, .tbl td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; }
+    .tbl th { color: #888; font-weight: 500; background: #fafbfc; }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px;
+      z-index: 999; animation: fadeIn 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* ---- 视图切换 ---- */
+    .view-toggle {
+      display: flex; gap: 0; margin-bottom: 14px;
+    }
+    .view-toggle button {
+      flex: 1; padding: 9px 0; font-size: 13px; cursor: pointer;
+      border: 1.5px solid #dde4ed; background: #fff; color: #888;
+      transition: all 0.2s;
+    }
+    .view-toggle button:first-child { border-radius: 8px 0 0 8px; }
+    .view-toggle button:last-child { border-radius: 0 8px 8px 0; }
+    .view-toggle button.active {
+      background: #2c5364; color: #fff; border-color: #2c5364; font-weight: 600;
+    }
+
+    /* ---- 综合表格 ---- */
+    .overview-tbl {
+      display: none; width: 100%; border-collapse: collapse; font-size: 13px;
+      background: #fff; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 24px;
+    }
+    .overview-tbl.active { display: table; }
+    .overview-tbl th, .overview-tbl td {
+      padding: 11px 8px; border-bottom: 1px solid #eee; text-align: center;
+    }
+    .overview-tbl th {
+      color: #888; font-weight: 500; background: #fafbfc; font-size: 12px;
+    }
+    .overview-tbl tbody tr {
+      cursor: pointer; transition: background 0.15s;
+    }
+    .overview-tbl tbody tr:hover { background: #f5f9fc; }
+    .overview-tbl tbody tr.selected { background: #e8f0f6; }
+    .overview-tbl .badge {
+      display: inline-block; min-width: 28px; padding: 2px 8px;
+      border-radius: 12px; color: #fff; font-weight: 700; font-size: 14px;
+    }
+    .overview-tbl .badge.green { background: #11998e; }
+    .overview-tbl .badge.yellow { background: #f2994a; }
+    .overview-tbl .badge.red { background: #e74c3c; }
+    .overview-tbl .badge.gray { background: #ccc; }
+    @media (max-width: 480px) {
+      .overview-tbl { font-size: 11px; }
+      .overview-tbl th, .overview-tbl td { padding: 8px 4px; }
+    }
+
+    /* ---- 预警横幅 ---- */
+    .alert-banner {
+      display: none; padding: 14px 18px; border-radius: 12px; margin-bottom: 18px;
+      font-size: 14px; font-weight: 500;
+    }
+    .alert-banner.warn { display: block; background: #fef3e2; color: #c2780a; border: 1px solid #f5d78e; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a href="index.html">← 首页</a>
+      <h2>🔍 成绩查询</h2>
+    </div>
+
+    <!-- 登录区 -->
+    <div class="login-card" id="loginCard">
+      <h3>学生登录</h3>
+      <input id="loginId" placeholder="请输入学号">
+      <input id="loginPwd" type="password" placeholder="请输入密码">
+      <button class="btn" id="btnLogin">登 录</button>
+    </div>
+
+    <!-- 仪表盘（登录后显示） -->
+    <div class="dashboard" id="dashboard">
+      <div class="student-bar">
+        <div class="info" id="studentInfo"></div>
+        <button class="btn-sm" id="btnLogout">退出登录</button>
+      </div>
+
+      <div class="alert-banner" id="alertBanner"></div>
+
+      <div class="view-toggle">
+        <button id="btnCardView" class="active">📱 卡片视图</button>
+        <button id="btnTableView">📊 综合成绩表</button>
+      </div>
+
+      <div class="card-grid" id="cardGrid"></div>
+
+      <table class="overview-tbl" id="overviewTable">
+        <thead>
+          <tr>
+            <th>项目</th>
+            <th>原始成绩</th>
+            <th>换算值</th>
+            <th>得分</th>
+            <th>趋势</th>
+            <th>测试次数</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div class="detail-section" id="detailSection">
+        <h3 id="detailTitle"></h3>
+        <div class="chart-wrap"><canvas id="scoreChart"></canvas></div>
+        <h4 style="margin-bottom:8px;color:#888;">📜 历史记录</h4>
+        <table class="tbl" id="historyTbl">
+          <thead><tr><th>日期</th><th>原始成绩</th><th>换算值</th><th>得分</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <h4 style="margin-top:20px;margin-bottom:8px;color:#888;">💡 训练建议</h4>
+        <ul class="advice-list" id="adviceList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+
+  <script>
+  (function () {
+    var U = window.SportsUtils;
+    var currentStudent = null;
+    var allProjects = {};
+    var recordGroups = {}; // projectId → sorted records
+    var chartInstance = null;
+
+    // ---- 初始化 ----
+    async function init() {
+      try { await U.initDefaultData(); } catch (e) { /* ok */ }
+      var projList = await U.sbFind('Project', {});
+      allProjects = {};
+      projList.forEach(function (p) { allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better }; });
+    }
+
+    // ---- 登录 ----
+    document.getElementById('btnLogin').addEventListener('click', async function () {
+      var sid = document.getElementById('loginId').value.trim();
+      var pwd = document.getElementById('loginPwd').value.trim();
+      if (!sid || !pwd) { showToast('请输入学号和密码', 'error'); return; }
+
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = '登录中...';
+
+      try {
+        var students = await U.sbFind('Student', { student_id: sid });
+        if (students.length === 0) throw new Error('学号不存在');
+        var stu = students[0];
+        if (stu.password !== pwd) throw new Error('密码错误');
+
+        currentStudent = { id: stu.id, name: stu.name, class: stu.class, studentId: stu.student_id, gender: stu.gender };
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('dashboard').classList.add('active');
+        document.getElementById('studentInfo').innerHTML = currentStudent.name + ' <span>' + currentStudent.class + ' · ' + currentStudent.studentId + ' · ' + (currentStudent.gender || '') + '</span>';
+
+        await loadRecords();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '登 录';
+      }
+    });
+
+    // ---- 退出 ----
+    document.getElementById('btnLogout').addEventListener('click', function () {
+      currentStudent = null;
+      recordGroups = {};
+      document.getElementById('loginCard').style.display = '';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('detailSection').classList.remove('active');
+      document.getElementById('loginId').value = '';
+      document.getElementById('loginPwd').value = '';
+    });
+
+    // ---- 加载成绩 ----
+    async function loadRecords() {
+      var records = await U.sbFind('TestRecord', { student_id: currentStudent.studentId }, { ascending: 'date' });
+      recordGroups = {};
+      records.forEach(function (r) {
+        var pid = r.project_id;
+        if (!recordGroups[pid]) recordGroups[pid] = [];
+        recordGroups[pid].push(r);
+      });
+
+      renderCards();
+      renderOverviewTable();
+    }
+
+    // ---- 渲染项目卡片 ----
+    async function renderCards() {
+      var grid = document.getElementById('cardGrid');
+      grid.innerHTML = '';
+
+      var projectIds = Object.keys(recordGroups);
+      if (projectIds.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#aaa;padding:30px;">暂无成绩记录</div>';
+        return;
+      }
+
+      // 按项目加载评分标准
+      var sGender = currentStudent.gender || '男';
+      var allStandards = await U.sbFind('ScoreStandard', { gender: sGender });
+      var stdByProj = {};
+      allStandards.forEach(function (s) {
+        var pid = s.project_id;
+        if (!stdByProj[pid]) stdByProj[pid] = [];
+        stdByProj[pid].push(s);
+      });
+
+      // 排序并计算每个项目的最新得分
+      var cardsData = [];
+      var hasWarning = false;
+
+      for (var pid of projectIds) {
+        var proj = allProjects[pid];
+        if (!proj) continue;
+        var recs = recordGroups[pid];
+        recs.sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
+
+        var latest = recs[recs.length - 1];
+        var standards = stdByProj[pid] || [];
+
+        // 对标准排序
+        standards.sort(function (a, b) {
+          var va = a.threshold_value, vb = b.threshold_value;
+          return proj.smallerIsBetter ? va - vb : vb - va;
+        });
+
+        var latestScore = U.calculateScore(standards, latest.value, proj.smallerIsBetter);
+
+        // 计算分数趋势：比较最近两次
+        var trend = 0;
+        var valueDiff = 0;
+        if (recs.length >= 2) {
+          var prev = recs[recs.length - 2];
+          var prevScore = U.calculateScore(standards, prev.value, proj.smallerIsBetter);
+          valueDiff = latest.value - prev.value;
+          if (latestScore > prevScore) trend = 1;
+          else if (latestScore < prevScore) trend = -1;
+
+          // 退步预警：800m(女)/1000m(男) 退步≥15秒
+          var degradeKey = currentStudent.gender === '女' ? '800米跑' : '1000米跑';
+          if (proj.name === degradeKey && valueDiff >= 15) hasWarning = true;
+        }
+
+        cardsData.push({ pid: pid, proj: proj, latest: latest, latestScore: latestScore, trend: trend, valueDiff: valueDiff, standards: standards, recs: recs, recCount: recs.length });
+
+        // 渲染卡片
+        var card = document.createElement('div');
+        card.className = 'score-card';
+        card.dataset.pid = pid;
+
+        var scoreClass = 'gray';
+        if (latestScore !== null && latestScore >= 8) scoreClass = 'green';
+        else if (latestScore !== null && latestScore >= 5) scoreClass = 'yellow';
+        else if (latestScore !== null) scoreClass = 'red';
+
+        var trendHtml = '';
+        if (trend === 1) trendHtml = '<div class="trend" style="color:#11998e;">📈 上升</div>';
+        else if (trend === -1) trendHtml = '<div class="trend" style="color:#e74c3c;">📉 下降</div>';
+
+        var displayVal = proj.unit === '秒' ? U.secondsToTime(latest.value) : latest.value;
+
+        card.innerHTML =
+          '<div class="proj-name">' + proj.name + '</div>' +
+          '<div class="big-score ' + scoreClass + '">' + (latestScore !== null ? latestScore : '?') + '</div>' +
+          '<div class="sub-info">' + displayVal + ' ' + proj.unit + ' · ' + recs.length + '次测试</div>' +
+          trendHtml;
+
+        card.addEventListener('click', function () {
+          document.querySelectorAll('.score-card').forEach(function (c) { c.classList.remove('selected'); });
+          card.classList.add('selected');
+          showDetail(cardsData.find(function (d) { return d.pid === pid; }));
+        });
+
+        grid.appendChild(card);
+      }
+
+      // 退步预警横幅
+      var banner = document.getElementById('alertBanner');
+      if (hasWarning) {
+        banner.className = 'alert-banner warn';
+        banner.textContent = '⚠️ ' + (currentStudent.gender === '女' ? '800米跑' : '1000米跑') + '成绩出现明显退步（≥15秒），请加强训练！';
+      } else {
+        banner.className = 'alert-banner';
+      }
+
+      // 存储供详情使用
+      window._cardsData = cardsData;
+    }
+
+    // ---- 显示详情 ----
+    // ---- 综合成绩表 ----
+    function renderOverviewTable() {
+      var cardsData = window._cardsData || [];
+      var tbody = document.querySelector('#overviewTable tbody');
+      tbody.innerHTML = '';
+
+      if (cardsData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding:30px;color:#aaa;">暂无成绩记录</td></tr>';
+        return;
+      }
+
+      cardsData.forEach(function (data) {
+        var scoreClass = 'gray';
+        if (data.latestScore !== null && data.latestScore >= 8) scoreClass = 'green';
+        else if (data.latestScore !== null && data.latestScore >= 5) scoreClass = 'yellow';
+        else if (data.latestScore !== null) scoreClass = 'red';
+
+        var trendText = '—';
+        var trendColor = '#aaa';
+        if (data.trend === 1) { trendText = '📈 上升'; trendColor = '#11998e'; }
+        else if (data.trend === -1) { trendText = '📉 下降'; trendColor = '#e74c3c'; }
+
+        var displayVal = data.proj.unit === '秒' ? U.secondsToTime(data.latest.value) : data.latest.value;
+
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><strong>' + data.proj.name + '</strong></td>' +
+          '<td>' + data.latest.raw_score + '</td>' +
+          '<td>' + displayVal + ' ' + data.proj.unit + '</td>' +
+          '<td><span class="badge ' + scoreClass + '">' + (data.latestScore !== null ? data.latestScore : '?') + '</span></td>' +
+          '<td style="color:' + trendColor + ';">' + trendText + '</td>' +
+          '<td>' + data.recCount + ' 次</td>';
+
+        tr.addEventListener('click', function () {
+          var rows = document.querySelectorAll('#overviewTable tbody tr');
+          rows.forEach(function (r) { r.classList.remove('selected'); });
+          tr.classList.add('selected');
+          // 同时高亮对应卡片
+          document.querySelectorAll('.score-card').forEach(function (c) { c.classList.remove('selected'); });
+          var card = document.querySelector('.score-card[data-pid="' + data.pid + '"]');
+          if (card) card.classList.add('selected');
+          showDetail(data);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ---- 视图切换 ----
+    document.getElementById('btnCardView').addEventListener('click', function () {
+      this.classList.add('active');
+      document.getElementById('btnTableView').classList.remove('active');
+      document.getElementById('cardGrid').style.display = '';
+      document.getElementById('overviewTable').classList.remove('active');
+    });
+
+    document.getElementById('btnTableView').addEventListener('click', function () {
+      this.classList.add('active');
+      document.getElementById('btnCardView').classList.remove('active');
+      document.getElementById('cardGrid').style.display = 'none';
+      document.getElementById('overviewTable').classList.add('active');
+    });
+
+    function showDetail(data) {
+      var section = document.getElementById('detailSection');
+      section.classList.add('active');
+      document.getElementById('detailTitle').textContent = '📊 ' + data.proj.name + ' 成绩趋势';
+
+      // 渲染图表
+      renderChart(data);
+
+      // 渲染历史表格
+      var tbody = document.querySelector('#historyTbl tbody');
+      tbody.innerHTML = '';
+      data.recs.slice().reverse().forEach(function (r) {
+        var score = U.calculateScore(data.standards, r.value, data.proj.smallerIsBetter);
+        var displayVal = data.proj.unit === '秒' ? U.secondsToTime(r.value) : r.value;
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + r.date + '</td>' +
+          '<td>' + r.raw_score + '</td>' +
+          '<td>' + displayVal + '</td>' +
+          '<td><strong>' + (score !== null ? score : '?') + '</strong></td>';
+        tbody.appendChild(tr);
+      });
+
+      // 渲染训练建议
+      var adviceItems = buildAdvice(data);
+      var adviceList = document.getElementById('adviceList');
+      adviceList.innerHTML = '';
+      adviceItems.forEach(function (item) {
+        var li = document.createElement('li');
+        li.textContent = item.text;
+        if (item.type) li.className = item.type;
+        adviceList.appendChild(li);
+      });
+
+      section.scrollIntoView({ behavior: 'smooth' });
+
+    // ---- 图表 ----
+    function renderChart(data) {
+      var ctx = document.getElementById('scoreChart');
+      if (chartInstance) chartInstance.destroy();
+
+      var labels = [];
+      var scores = [];
+      var values = [];
+
+      data.recs.forEach(function (r) {
+        labels.push(r.date);
+        var s = U.calculateScore(data.standards, r.value, data.proj.smallerIsBetter);
+        scores.push(s);
+        values.push(r.value);
+      });
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '得分 (1-10)',
+            data: scores,
+            borderColor: '#2c5364',
+            backgroundColor: 'rgba(44, 83, 100, 0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 5,
+            pointBackgroundColor: '#2c5364',
+            yAxisID: 'y',
+          }, {
+            label: '成绩值 (' + data.proj.unit + ')',
+            data: values,
+            borderColor: '#f2994a',
+            backgroundColor: 'rgba(242, 153, 74, 0.05)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4,
+            pointBackgroundColor: '#f2994a',
+            yAxisID: 'y1',
+            borderDash: [5, 3],
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 14, padding: 16 } },
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              min: 0, max: 10,
+              ticks: { stepSize: 1 },
+              title: { display: true, text: '得分' },
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: data.proj.unit },
+              grid: { drawOnChartArea: false },
+            },
+          },
+        },
+      });
+    }
+
+    // ---- 训练建议 ----
+    function buildAdvice(data) {
+      var items = [];
+      var latestScore = data.latestScore;
+      var proj = data.proj;
+
+      if (latestScore === 10) {
+        items.push({ text: '🎉 恭喜！该项目获得满分（10分），请继续保持！', type: 'good' });
+      }
+
+      // 趋势分析
+      if (data.recs.length >= 2) {
+        var prev = data.recs[data.recs.length - 2];
+        var prevScore = U.calculateScore(data.standards, prev.value, proj.smallerIsBetter);
+        var diff = data.valueDiff;
+
+        if (latestScore > prevScore) {
+          items.push({ text: '📈 相比上次测试，得分提高了 ' + (latestScore - prevScore) + ' 分！保持当前训练节奏。', type: 'good' });
+        } else if (latestScore < prevScore) {
+          var degradeDesc = proj.smallerIsBetter ? (diff > 0 ? '慢了 ' + diff.toFixed(1) + ' ' + proj.unit : '退步') : '减少了 ' + Math.abs(diff).toFixed(2) + ' ' + proj.unit;
+          items.push({ text: '⚠️ 成绩出现退步。需加强训练，建议针对性补强。', type: 'warn' });
+        } else {
+          items.push({ text: '➡️ 本次成绩与上次持平，继续保持。' });
+        }
+      }
+
+      // 项目专项建议
+      var projAdvice = [
+        { name: '800米跑', tips: ['加强耐力跑训练，每周 3-4 次', '前 600 米匀速，最后 200 米全力冲刺', '注意呼吸节奏：两步一呼两步一吸'] },
+        { name: '1000米跑', tips: ['加强耐力跑训练，每周 3-4 次', '前 800 米匀速，最后 200 米全力冲刺', '注意呼吸节奏：三步一呼三步一吸'] },
+        { name: '足球运球', tips: ['加强运球绕杆练习，提升变向速度', '运球时降低重心，脚内侧 / 外侧交替触球'] },
+        { name: '50米跑', tips: ['加强爆发力训练，多做 30-60 米冲刺', '改进起跑姿势，重心前移快速蹬地'] },
+        { name: '立定跳远', tips: ['加强腿部爆发力：蛙跳、深蹲跳', '改进摆臂与起跳的协调配合'] },
+        { name: '一分钟跳绳', tips: ['练习手腕摇绳技巧，减少手臂大幅摆动', '保持身体正直稳定，用前脚掌着地', '每天坚持 3 组 1 分钟限时训练'] },
+        { name: '掷实心球', tips: ['加强上肢和腰腹核心力量训练', '改进出手角度（约 38°-42°）'] },
+        { name: '篮球运球投篮', tips: ['提高运球与投篮之间的连贯性', '模拟考试路线进行计时训练'] },
+        { name: '一分钟仰卧起坐', tips: ['每天坚持腹肌训练，递增组数', '注意动作标准：肘触膝', '分组训练法：30s 快做 + 30s 休息'] },
+        { name: '引体向上', tips: ['加强背阔肌和肱二头肌力量训练', '使用弹力带辅助练习，逐步减少辅助'] },
+        { name: '游泳', tips: ['每周至少下水训练 3 次', '改进划水效率和呼吸节奏', '加强转身和到边技术练习'] },
+      ];
+
+      var match = projAdvice.find(function (a) { return a.name === proj.name; });
+      if (match) {
+        match.tips.forEach(function (t) { items.push({ text: '💪 ' + t }); });
+      }
+
+      // 低分鼓励
+      if (latestScore !== null && latestScore <= 3) {
+        items.push({ text: '💪 当前成绩较低，建议从基础体能开始，坚持每日训练。', type: 'warn' });
+      }
+
+      return items;
+    }
+
+    function showToast(msg, type) {
+      var t = document.createElement('div');
+      t.className = 'toast ' + (type || 'success');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2800);
+    }
+
+    init().catch(function (e) { showToast('初始化失败：' + e.message, 'error'); });
+  })();
+  </script>
+</body>
+</html>

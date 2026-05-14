@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>班级分析 - 中学体育成绩追踪</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: #f0f4f8; min-height: 100vh; color: #333;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    }
+    .topbar a {
+      text-decoration: none; color: #2c5364; font-size: 14px;
+      padding: 6px 14px; border-radius: 20px; background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .topbar h2 { font-size: 22px; color: #1a1a2e; }
+
+    /* ---- 登录 ---- */
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 36px 28px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center;
+      max-width: 400px; margin: 60px auto 0;
+    }
+    .login-card h3 { font-size: 20px; margin-bottom: 20px; color: #2c5364; }
+    .login-card input {
+      width: 100%; padding: 12px 16px; font-size: 15px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; margin-bottom: 12px;
+    }
+    .login-card input:focus { outline: none; border-color: #2c5364; }
+    .login-card .hint { font-size: 12px; color: #bbb; margin-bottom: 16px; }
+
+    .btn {
+      display: block; width: 100%; padding: 14px; font-size: 16px;
+      font-weight: 600; letter-spacing: 1px; border: none; border-radius: 12px;
+      cursor: pointer; color: #fff; background: linear-gradient(135deg, #2c5364, #203a43);
+      transition: transform 0.1s;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- 仪表盘 ---- */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    .bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-radius: 14px; padding: 14px 20px;
+      margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .bar .title { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+    .bar select { padding: 8px 14px; border-radius: 8px; border: 1.5px solid #dde4ed; font-size: 14px; }
+    .btn-sm {
+      padding: 8px 18px; font-size: 13px; border-radius: 20px;
+      border: 1.5px solid #2c5364; background: #fff; color: #2c5364;
+      cursor: pointer; font-weight: 500;
+    }
+
+    /* ---- 统计卡片 ---- */
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat-card {
+      background: #fff; border-radius: 14px; padding: 18px 16px;
+      text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .stat-card .num { font-size: 32px; font-weight: 700; color: #2c5364; }
+    .stat-card .lbl { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+    /* ---- 图表区 ---- */
+    .chart-section {
+      background: #fff; border-radius: 14px; padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 18px;
+    }
+    .chart-section h3 { color: #2c5364; margin-bottom: 14px; font-size: 16px; }
+    .chart-wrap { position: relative; width: 100%; max-height: 320px; }
+    canvas { width: 100% !important; }
+
+    /* ---- 学生成绩矩阵 ---- */
+    .matrix-wrap {
+      background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      overflow-x: auto; margin-bottom: 18px;
+    }
+    .matrix-wrap h3 { padding: 16px 20px 8px; color: #2c5364; font-size: 16px; }
+    .matrix-wrap .mat-note { padding: 0 20px 8px; font-size: 12px; color: #aaa; }
+    .matrix-tbl {
+      width: 100%; border-collapse: collapse; font-size: 12px; min-width: 600px;
+    }
+    .matrix-tbl th, .matrix-tbl td {
+      padding: 10px 6px; border-bottom: 1px solid #eee; text-align: center;
+    }
+    .matrix-tbl th {
+      color: #888; font-weight: 500; background: #fafbfc;
+      position: sticky; top: 0; white-space: nowrap;
+    }
+    .matrix-tbl th:first-child, .matrix-tbl td:first-child {
+      position: sticky; left: 0; background: #fff; font-weight: 600; z-index: 1;
+    }
+    .matrix-tbl th:first-child { z-index: 2; }
+    .matrix-tbl tbody tr:hover td { background: #f5f9fc; }
+    .matrix-tbl tbody tr:hover td:first-child { background: #f5f9fc; }
+    .badge {
+      display: inline-block; min-width: 24px; padding: 2px 6px;
+      border-radius: 10px; color: #fff; font-weight: 700; font-size: 12px;
+    }
+    .badge.green { background: #11998e; }
+    .badge.yellow { background: #f2994a; }
+    .badge.red { background: #e74c3c; }
+    .badge.gray { background: #ccc; }
+
+    /* ---- 分布图 ---- */
+    .dist-section {
+      background: #fff; border-radius: 14px; padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 18px;
+    }
+    .dist-section h3 { color: #2c5364; margin-bottom: 14px; font-size: 16px; }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px;
+      z-index: 999; animation: fadeIn 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a href="index.html">← 首页</a>
+      <h2>📊 班级分析</h2>
+    </div>
+
+    <!-- 登录 -->
+    <div class="login-card" id="loginCard">
+      <h3>教师登录</h3>
+      <input id="teacherPwd" type="password" placeholder="请输入教师口令">
+      <div class="hint">默认口令：teacher123（可在系统设置中修改）</div>
+      <button class="btn" id="btnLogin">登 录</button>
+    </div>
+
+    <!-- 仪表盘 -->
+    <div class="dashboard" id="dashboard">
+      <div class="bar">
+        <div>
+          <span class="title">👨‍🏫 班级分析面板</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;color:#888;">选择班级：</label>
+          <select id="classSelect"><option value="">-- 选择班级 --</option></select>
+          <button class="btn-sm" id="btnLogout">退出</button>
+        </div>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="stat-row" id="statRow">
+        <div class="stat-card"><div class="num" id="statStudents">-</div><div class="lbl">学生人数</div></div>
+        <div class="stat-card"><div class="num" id="statRecords">-</div><div class="lbl">测试记录数</div></div>
+        <div class="stat-card"><div class="num" id="statAvg">-</div><div class="lbl">班级均分</div></div>
+        <div class="stat-card"><div class="num" id="statProjects">-</div><div class="lbl">已测项目</div></div>
+      </div>
+
+      <!-- 项目均分柱状图 -->
+      <div class="chart-section">
+        <h3>📊 各项目班级均分</h3>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+
+      <!-- 学生成绩矩阵 -->
+      <div class="matrix-wrap">
+        <h3>📋 学生成绩一览</h3>
+        <div class="mat-note">点击表头排序 · 得分颜色：<span class="badge green">8-10</span> <span class="badge yellow">5-7</span> <span class="badge red">1-4</span> <span class="badge gray">未测</span></div>
+        <table class="matrix-tbl" id="matrixTbl">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- 分数分布 -->
+      <div class="dist-section">
+        <h3>📈 分数段分布</h3>
+        <div class="chart-wrap" style="max-height:260px;"><canvas id="distChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+
+  <script>
+  (function () {
+    var U = window.SportsUtils;
+    var allStudents = [];
+    var allProjects = {};
+    var classData = {}; // className → { students: [], records: {} }
+    var barChartInst = null;
+    var distChartInst = null;
+
+    // ---- 初始化 ----
+    async function init() {
+      try { await U.initDefaultData(); } catch (e) { /* ok */ }
+      var projList = await U.sbFind('Project', {});
+      allProjects = {};
+      projList.forEach(function (p) { allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better }; });
+    }
+
+    // ---- 登录 ----
+    document.getElementById('btnLogin').addEventListener('click', async function () {
+      var pwd = document.getElementById('teacherPwd').value.trim();
+      if (!pwd) { showToast('请输入教师口令', 'error'); return; }
+      var btn = this; btn.disabled = true; btn.textContent = '验证中...';
+      try {
+        var ok = await U.verifyTeacherPassword(pwd);
+        if (!ok) throw new Error('口令错误');
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('dashboard').classList.add('active');
+        await loadAllData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally { btn.disabled = false; btn.textContent = '登 录'; }
+    });
+
+    // ---- 退出 ----
+    document.getElementById('btnLogout').addEventListener('click', function () {
+      document.getElementById('loginCard').style.display = '';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('teacherPwd').value = '';
+      classData = {};
+      allStudents = [];
+    });
+
+    // ---- 加载全部数据 ----
+    async function loadAllData() {
+      allStudents = await U.sbFind('Student', {});
+
+      // 按班级分组
+      classData = {};
+      allStudents.forEach(function (s) {
+        var cls = s.class || '未分班';
+        if (!classData[cls]) classData[cls] = { students: [], records: {} };
+        classData[cls].students.push(s);
+      });
+
+      // 填充班级下拉
+      var sel = document.getElementById('classSelect');
+      sel.innerHTML = '<option value="">-- 选择班级 --</option>';
+      Object.keys(classData).sort().forEach(function (cls) {
+        var opt = document.createElement('option');
+        opt.value = cls;
+        opt.textContent = cls + ' (' + classData[cls].students.length + '人)';
+        sel.appendChild(opt);
+      });
+    }
+
+    // ---- 班级选择 ----
+    document.getElementById('classSelect').addEventListener('change', async function () {
+      var cls = this.value;
+      if (!cls) return;
+      await analyzeClass(cls);
+    });
+
+    async function analyzeClass(className) {
+      var data = classData[className];
+      if (!data) return;
+      var students = data.students;
+
+      // 预加载学生记录
+      var allRecords = [];
+      for (var s of students) {
+        var recs = await U.sbFind('TestRecord', { student_id: s.student_id }, { ascending: 'date' });
+        recs.forEach(function (r) { r._studentId = s.student_id; });
+        allRecords = allRecords.concat(recs);
+      }
+
+      // 按项目分组记录
+      var recordsByProj = {};
+      allRecords.forEach(function (r) {
+        var pid = r.project_id;
+        if (!recordsByProj[pid]) recordsByProj[pid] = [];
+        recordsByProj[pid].push(r);
+      });
+
+      // 每个学生每个项目取最新记录，计算得分
+      // studentScores: { studentId: { projectId: { score, value, raw, date } } }
+      var studentScores = {};
+      students.forEach(function (s) {
+        studentScores[s.student_id] = {};
+      });
+
+      var allStandards = await U.sbFind('ScoreStandard', {});
+
+      // 对每条记录计算得分
+      allRecords.forEach(function (r) {
+        var sid = r._studentId;
+        var pid = r.project_id;
+        var existing = studentScores[sid][pid];
+        var rDate = new Date(r.date);
+        if (!existing || rDate > new Date(existing.date)) {
+          var proj = allProjects[pid];
+          if (!proj) return;
+          var student = students.find(function (s) { return s.student_id === sid; });
+          var gender = student ? student.gender : '男';
+          var stds = allStandards.filter(function (s) {
+            return s.project_id === pid && s.gender === gender;
+          });
+          stds.sort(function (a, b) {
+            var va = a.threshold_value, vb = b.threshold_value;
+            return proj.smallerIsBetter ? va - vb : vb - va;
+          });
+          var score = U.calculateScore(stds, r.value, proj.smallerIsBetter);
+          studentScores[sid][pid] = {
+            score: score, value: r.value, raw: r.raw_score, date: r.date
+          };
+        }
+      });
+
+      // 更新统计卡片
+      var totalRecords = allRecords.length;
+      var projectIds = Object.keys(recordsByProj);
+      var allScores = [];
+      Object.values(studentScores).forEach(function (projMap) {
+        Object.values(projMap).forEach(function (d) { if (d.score !== null) allScores.push(d.score); });
+      });
+      var avgScore = allScores.length > 0 ? (allScores.reduce(function (a, b) { return a + b; }, 0) / allScores.length).toFixed(1) : '-';
+
+      document.getElementById('statStudents').textContent = students.length;
+      document.getElementById('statRecords').textContent = totalRecords;
+      document.getElementById('statAvg').textContent = avgScore;
+      document.getElementById('statProjects').textContent = projectIds.length;
+
+      // 渲染柱状图
+      renderBarChart(studentScores, students, projectIds);
+      // 渲染矩阵
+      renderMatrix(studentScores, students, projectIds);
+      // 渲染分布图
+      renderDistChart(allScores);
+    }
+
+    // ---- 柱状图：各项目班级均分 ----
+    function renderBarChart(studentScores, students, projectIds) {
+      var ctx = document.getElementById('barChart');
+      if (barChartInst) barChartInst.destroy();
+
+      var labels = [];
+      var avgScores = [];
+      projectIds.forEach(function (pid) {
+        var proj = allProjects[pid];
+        labels.push(proj ? proj.name : pid);
+        var total = 0, count = 0;
+        students.forEach(function (s) {
+          var d = studentScores[s.student_id][pid];
+          if (d && d.score !== null) { total += d.score; count++; }
+        });
+        avgScores.push(count > 0 ? parseFloat((total / count).toFixed(1)) : 0);
+      });
+
+      barChartInst = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '班级均分',
+            data: avgScores,
+            backgroundColor: avgScores.map(function (v) {
+              if (v >= 8) return 'rgba(17, 153, 142, 0.7)';
+              if (v >= 5) return 'rgba(242, 153, 74, 0.7)';
+              return 'rgba(231, 76, 60, 0.7)';
+            }),
+            borderColor: avgScores.map(function (v) {
+              if (v >= 8) return '#11998e';
+              if (v >= 5) return '#f2994a';
+              return '#e74c3c';
+            }),
+            borderWidth: 1.5,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: 10, ticks: { stepSize: 1 }, title: { display: true, text: '平均得分' } },
+          },
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
+
+    // ---- 学生成绩矩阵 ----
+    function renderMatrix(studentScores, students, projectIds) {
+      var thead = document.querySelector('#matrixTbl thead');
+      var tbody = document.querySelector('#matrixTbl tbody');
+
+      // 表头
+      var headHtml = '<tr><th>姓名</th>';
+      projectIds.forEach(function (pid) {
+        var proj = allProjects[pid];
+        headHtml += '<th>' + (proj ? proj.name : pid) + '</th>';
+      });
+      headHtml += '<th>均分</th></tr>';
+      thead.innerHTML = headHtml;
+
+      // 表体
+      tbody.innerHTML = '';
+      students.sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
+
+      students.forEach(function (s) {
+        var sid = s.student_id;
+        var tr = document.createElement('tr');
+        var rowHtml = '<td>' + s.name + '</td>';
+        var rowTotal = 0, rowCount = 0;
+
+        projectIds.forEach(function (pid) {
+          var d = studentScores[sid][pid];
+          if (d && d.score !== null) {
+            var cls = 'gray';
+            if (d.score >= 8) cls = 'green';
+            else if (d.score >= 5) cls = 'yellow';
+            else cls = 'red';
+            rowHtml += '<td><span class="badge ' + cls + '">' + d.score + '</span></td>';
+            rowTotal += d.score;
+            rowCount++;
+          } else {
+            rowHtml += '<td><span class="badge gray">-</span></td>';
+          }
+        });
+
+        var rowAvg = rowCount > 0 ? (rowTotal / rowCount).toFixed(1) : '-';
+        rowHtml += '<td><strong>' + rowAvg + '</strong></td>';
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ---- 分数段分布 ----
+    function renderDistChart(allScores) {
+      var ctx = document.getElementById('distChart');
+      if (distChartInst) distChartInst.destroy();
+
+      var buckets = { '10分(满分)': 0, '8-9分': 0, '5-7分': 0, '3-4分': 0, '1-2分': 0 };
+      allScores.forEach(function (s) {
+        if (s === 10) buckets['10分(满分)']++;
+        else if (s >= 8) buckets['8-9分']++;
+        else if (s >= 5) buckets['5-7分']++;
+        else if (s >= 3) buckets['3-4分']++;
+        else buckets['1-2分']++;
+      });
+
+      distChartInst = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(buckets),
+          datasets: [{
+            data: Object.values(buckets),
+            backgroundColor: ['#11998e', '#38b2ac', '#f2994a', '#f6ad55', '#e74c3c'],
+            borderWidth: 2,
+            borderColor: '#fff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { padding: 16, boxWidth: 14 } },
+          },
+        },
+      });
+    }
+
+    function showToast(msg, type) {
+      var t = document.createElement('div');
+      t.className = 'toast ' + (type || 'success');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2800);
+    }
+
+    init().catch(function (e) { showToast('初始化失败：' + e.message, 'error'); });
+  })();
+  </script>
+</body>
+</html>

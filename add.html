@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>成绩录入 - 中学体育成绩追踪</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* ---- 顶栏 ---- */
+    .topbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 28px;
+    }
+    .topbar a {
+      text-decoration: none; color: #2c5364; font-size: 14px;
+      padding: 6px 14px; border-radius: 20px; background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .topbar h2 { font-size: 22px; color: #1a1a2e; }
+
+    /* ---- 表单区块 ---- */
+    .section {
+      background: #fff; border-radius: 14px; padding: 24px 20px;
+      margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .section h3 {
+      font-size: 16px; color: #2c5364; margin-bottom: 16px;
+      padding-bottom: 10px; border-bottom: 2px solid #e8f0f6;
+    }
+
+    label { display: block; font-size: 14px; color: #666; margin-bottom: 4px; }
+    select, input[type="text"], input[type="date"] {
+      width: 100%; padding: 11px 14px; font-size: 15px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; color: #333;
+      transition: border-color 0.2s;
+    }
+    select:focus, input:focus {
+      outline: none; border-color: #2c5364; background: #fff;
+    }
+
+    .inline-row { display: flex; gap: 12px; }
+    .inline-row > * { flex: 1; }
+    @media (max-width: 480px) {
+      .inline-row { flex-direction: column; }
+    }
+
+    .radio-group { display: flex; gap: 20px; }
+    .radio-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+    .hint {
+      font-size: 12px; color: #999; margin-top: 4px;
+    }
+
+    /* ---- 语音输入 ---- */
+    .input-with-mic {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .input-with-mic input { flex: 1; }
+    .mic-btn {
+      width: 48px; height: 48px; font-size: 22px;
+      border: 1.5px solid #dde4ed; border-radius: 50%;
+      background: #fafbfc; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s; flex-shrink: 0;
+    }
+    .mic-btn:hover { background: #e8f0f6; border-color: #2c5364; }
+    .mic-btn.listening {
+      background: #e74c3c; border-color: #e74c3c; color: #fff;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+      50% { box-shadow: 0 0 0 12px rgba(231, 76, 60, 0); }
+    }
+    .mic-status {
+      font-size: 12px; color: #e74c3c; margin-top: 4px; min-height: 18px;
+    }
+
+    /* ---- 按钮 ---- */
+    .btn {
+      display: block; width: 100%; padding: 14px; font-size: 17px;
+      font-weight: 600; letter-spacing: 1px; border: none; border-radius: 12px;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+      color: #fff; background: linear-gradient(135deg, #2c5364, #203a43);
+    }
+    .btn:hover { background: linear-gradient(135deg, #234555, #182e36); }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-outline {
+      background: #fff; color: #2c5364; border: 1.5px solid #2c5364;
+      padding: 8px 16px; font-size: 13px; width: auto; display: inline-block;
+      border-radius: 8px; cursor: pointer;
+    }
+
+    /* ---- 新建学生表单 ---- */
+    .new-student-form { display: none; margin-top: 12px; }
+    .new-student-form.active { display: block; }
+    .new-student-form .field { margin-bottom: 12px; }
+
+    /* ---- 结果卡片 ---- */
+    .result-card {
+      display: none; background: #fff; border-radius: 14px; padding: 28px 24px;
+      margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      text-align: center; animation: fadeIn 0.3s;
+    }
+    .result-card.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .score-circle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 80px; height: 80px; border-radius: 50%; font-size: 36px;
+      font-weight: 700; color: #fff; margin: 12px 0;
+    }
+    .score-circle.high { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .score-circle.mid { background: linear-gradient(135deg, #f2994a, #f2c94c); }
+    .score-circle.low { background: linear-gradient(135deg, #eb5757, #f2994a); }
+
+    .result-detail { font-size: 14px; color: #666; line-height: 2; }
+    .result-detail strong { color: #333; }
+
+    .history-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+    .history-table th, .history-table td {
+      padding: 8px 10px; border-bottom: 1px solid #eee; text-align: center;
+    }
+    .history-table th { color: #888; font-weight: 500; background: #fafbfc; }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px;
+      z-index: 999; animation: fadeIn 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    .toast.info { background: #2c5364; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 顶栏 -->
+    <div class="topbar">
+      <a href="index.html">← 首页</a>
+      <h2>📝 成绩录入</h2>
+    </div>
+
+    <!-- 步骤1: 选择学生 -->
+    <div class="section">
+      <h3>① 选择学生</h3>
+      <select id="studentSelect">
+        <option value="">-- 选择已有学生 --</option>
+      </select>
+      <div style="margin-top:10px;">
+        <button class="btn-outline" id="btnNewStudent" type="button">+ 新建学生</button>
+      </div>
+      <div class="new-student-form" id="newStudentForm">
+        <div class="inline-row">
+          <div class="field"><label>姓名</label><input id="sName" placeholder="如：张三"></div>
+          <div class="field"><label>班级</label><input id="sClass" placeholder="如：初三1班"></div>
+        </div>
+        <div class="inline-row">
+          <div class="field"><label>学号</label><input id="sId" placeholder="学号"></div>
+          <div class="field"><label>性别</label>
+            <div class="radio-group" style="padding-top:10px;">
+              <label><input type="radio" name="gender" value="男"> 男</label>
+              <label><input type="radio" name="gender" value="女"> 女</label>
+            </div>
+          </div>
+        </div>
+        <div class="inline-row">
+          <div class="field"><label>查询密码</label><input id="sPwd" type="text" placeholder="供学生查询用的密码"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 步骤2: 选择项目 -->
+    <div class="section">
+      <h3>② 选择测试项目</h3>
+      <select id="projectSelect">
+        <option value="">-- 请先选择学生以筛选项目 --</option>
+      </select>
+      <div class="hint" id="projectHint"></div>
+    </div>
+
+    <!-- 步骤3: 输入成绩 -->
+    <div class="section">
+      <h3>③ 输入成绩</h3>
+      <div class="input-with-mic">
+        <input id="rawScoreInput" placeholder="输入成绩或点击话筒语音输入...">
+        <button class="mic-btn" id="btnMic" type="button" title="语音输入">🎤</button>
+      </div>
+      <div class="mic-status" id="micStatus"></div>
+      <div class="hint" id="scoreHint">请先选择项目</div>
+    </div>
+
+    <!-- 步骤4: 测试日期 -->
+    <div class="section">
+      <h3>④ 测试日期</h3>
+      <input type="date" id="testDate">
+    </div>
+
+    <!-- 提交按钮 -->
+    <button class="btn" id="btnSubmit">提交成绩</button>
+
+    <!-- 结果卡片 -->
+    <div class="result-card" id="resultCard">
+      <h3 style="color:#2c5364;">📋 成绩单</h3>
+      <div class="score-circle" id="scoreCircle">-</div>
+      <div class="result-detail" id="resultDetail"></div>
+      <h4 style="margin-top:20px; color:#888;">历史记录</h4>
+      <table class="history-table" id="historyTable">
+        <thead><tr><th>日期</th><th>原始成绩</th><th>得分</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 外部依赖 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+
+  <script>
+  (function () {
+    const U = window.SportsUtils;
+    let allProjects = [];
+    let currentStudentGender = null;
+
+    // ---- 初始化 ----
+    async function init() {
+      try {
+        await U.initDefaultData();
+      } catch (e) { /* 可能已有数据 */ }
+
+      // 加载学生列表
+      await loadStudents();
+      // 加载项目列表
+      const projList = await U.sbFind('Project', {});
+      allProjects = projList;
+      // 设置默认日期
+      document.getElementById('testDate').valueAsDate = new Date();
+    }
+
+    async function loadStudents() {
+      const students = await U.sbFind('Student', {});
+      const sel = document.getElementById('studentSelect');
+      students.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.name + ' · ' + s.class + ' · ' + s.student_id;
+        opt.dataset.gender = s.gender || '';
+        sel.appendChild(opt);
+      });
+    }
+
+    // ---- 学生选择 ----
+    document.getElementById('studentSelect').addEventListener('change', function () {
+      const sel = this.options[this.selectedIndex];
+      if (this.value) {
+        currentStudentGender = sel.dataset.gender;
+        document.getElementById('newStudentForm').classList.remove('active');
+        populateProjects(currentStudentGender);
+      } else {
+        currentStudentGender = null;
+        populateProjects(null);
+      }
+    });
+
+    // 新建学生切换
+    document.getElementById('btnNewStudent').addEventListener('click', function () {
+      const form = document.getElementById('newStudentForm');
+      form.classList.toggle('active');
+      if (form.classList.contains('active')) {
+        document.getElementById('studentSelect').value = '';
+        currentStudentGender = null;
+        populateProjects(null);
+      }
+    });
+
+    // 性别选择联动项目过滤
+    document.querySelectorAll('input[name="gender"]').forEach(r => {
+      r.addEventListener('change', function () {
+        currentStudentGender = this.value;
+        populateProjects(this.value);
+      });
+    });
+
+    // ---- 项目列表填充 ----
+    function populateProjects(gender) {
+      const sel = document.getElementById('projectSelect');
+      sel.innerHTML = '<option value="">-- 选择项目 --</option>';
+
+      if (!gender) {
+        // 未选性别时列出所有
+        allProjects.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name + (p.gender_specific ? ' (分性别项目)' : '');
+          opt.dataset.unit = p.unit;
+          opt.dataset.smallerIsBetter = p.smaller_is_better ? '1' : '0';
+          opt.dataset.genderSpecific = p.gender_specific ? '1' : '0';
+          sel.appendChild(opt);
+        });
+      } else {
+        allProjects.forEach(p => {
+          // 过滤性别专属项目
+          if (p.gender_specific) {
+            if (gender === '女' && p.name !== '800米跑' && p.name !== '一分钟仰卧起坐') return;
+            if (gender === '男' && p.name !== '1000米跑' && p.name !== '引体向上') return;
+          }
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.name;
+          opt.dataset.unit = p.unit;
+          opt.dataset.smallerIsBetter = p.smaller_is_better ? '1' : '0';
+          opt.dataset.genderSpecific = p.gender_specific ? '1' : '0';
+          sel.appendChild(opt);
+        });
+      }
+    }
+
+    // ---- 项目选择 → 输入提示 ----
+    document.getElementById('projectSelect').addEventListener('change', function () {
+      const opt = this.options[this.selectedIndex];
+      const hint = document.getElementById('scoreHint');
+      if (!this.value) {
+        hint.textContent = '请先选择项目';
+        return;
+      }
+      const unit = opt.dataset.unit;
+      const sib = opt.dataset.smallerIsBetter === '1';
+      if (unit === '秒') {
+        hint.textContent = '格式示例：4\'03" 或 4.03 或 4:03 或纯秒数（如 243）';
+      } else {
+        hint.textContent = '直接输入数值，单位：' + unit;
+      }
+    });
+
+    // ---- 提交成绩 ----
+    document.getElementById('btnSubmit').addEventListener('click', async function () {
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = '提交中...';
+
+      try {
+        // 获取或创建学生
+        const studentId = await getOrCreateStudent();
+        if (!studentId) throw new Error('请选择或新建学生');
+
+        // 获取项目
+        const projSel = document.getElementById('projectSelect');
+        if (!projSel.value) throw new Error('请选择测试项目');
+        const projId = projSel.value;
+        const opt = projSel.options[projSel.selectedIndex];
+        const smallerIsBetter = opt.dataset.smallerIsBetter === '1';
+        const unit = opt.dataset.unit;
+
+        // 解析成绩
+        const rawScore = document.getElementById('rawScoreInput').value.trim();
+        if (!rawScore) throw new Error('请输入成绩');
+        const value = U.timeToSeconds(rawScore);
+        if (value === null || isNaN(value)) throw new Error('成绩格式不正确，请检查');
+
+        // 日期
+        const dateVal = document.getElementById('testDate').value;
+        if (!dateVal) throw new Error('请选择测试日期');
+
+        // 生成 studentId 字符串用于记录
+        const studentAV = await U.sbGet('Student', studentId);
+        const sidStr = studentAV.student_id;
+        const sGender = studentAV.gender;
+
+        // 保存成绩记录
+        const record = await U.sbCreate('TestRecord', {
+          student_id: sidStr,
+          project_id: projId,
+          raw_score: rawScore,
+          value: value,
+          date: dateVal,
+        });
+
+        // 计算得分
+        const standards = await U.getScoreStandards(projId, sGender);
+        const score = U.calculateScore(standards, value, smallerIsBetter);
+
+        // 获取历史记录
+        const history = await U.sbFind('TestRecord',
+          { student_id: sidStr, project_id: projId },
+          { descending: 'date' }
+        );
+
+        // 展示结果卡片
+        showResultCard({
+          studentName: studentAV.name,
+          projectName: opt.textContent,
+          rawScore: rawScore,
+          value: value,
+          unit: unit,
+          smallerIsBetter: smallerIsBetter,
+          score: score,
+          history: history,
+        });
+
+        // 清空成绩输入
+        document.getElementById('rawScoreInput').value = '';
+
+        showToast('✅ 成绩已保存', 'success');
+      } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '提交成绩';
+      }
+    });
+
+    async function getOrCreateStudent() {
+      const sel = document.getElementById('studentSelect');
+      if (sel.value) return sel.value;
+
+      // 新建学生
+      const name = document.getElementById('sName').value.trim();
+      const cls = document.getElementById('sClass').value.trim();
+      const sid = document.getElementById('sId').value.trim();
+      const pwd = document.getElementById('sPwd').value.trim() || '123456';
+      const genderRadio = document.querySelector('input[name="gender"]:checked');
+      const gender = genderRadio ? genderRadio.value : null;
+
+      if (!name || !cls || !sid || !gender) {
+        throw new Error('请填写完整的学生信息（姓名、班级、学号、性别）');
+      }
+
+      // 检查学号是否重复
+      const exist = await U.sbFind('Student', { student_id: sid });
+      if (exist.length > 0) throw new Error('该学号已存在，请在列表中选择');
+
+      const obj = await U.sbCreate('Student', {
+        name, class: cls, student_id: sid, password: pwd, gender
+      });
+
+      // 刷新列表
+      const opt = document.createElement('option');
+      opt.value = obj.id;
+      opt.textContent = name + ' · ' + cls + ' · ' + sid;
+      opt.dataset.gender = gender;
+      document.getElementById('studentSelect').appendChild(opt);
+      document.getElementById('studentSelect').value = obj.id;
+      document.getElementById('newStudentForm').classList.remove('active');
+      currentStudentGender = gender;
+      populateProjects(gender);
+
+      return obj.id;
+    }
+
+    function showResultCard(data) {
+      document.getElementById('resultCard').classList.add('active');
+
+      // 得分圆圈
+      const circle = document.getElementById('scoreCircle');
+      circle.textContent = data.score !== null ? data.score + '分' : '?';
+      circle.className = 'score-circle';
+      if (data.score >= 8) circle.classList.add('high');
+      else if (data.score >= 5) circle.classList.add('mid');
+      else circle.classList.add('low');
+
+      // 详情
+      document.getElementById('resultDetail').innerHTML =
+        '<strong>学生：</strong>' + data.studentName + '<br>' +
+        '<strong>项目：</strong>' + data.projectName + '<br>' +
+        '<strong>原始成绩：</strong>' + data.rawScore + '<br>' +
+        '<strong>换算值：</strong>' + data.value + ' ' + data.unit + '<br>' +
+        '<strong>得分：</strong>' + (data.score !== null ? data.score + ' 分' : '暂无评分标准');
+
+      // 历史表格
+      const tbody = document.querySelector('#historyTable tbody');
+      tbody.innerHTML = '';
+      const records = data.history || [];
+      records.forEach(r => {
+        const tr = document.createElement('tr');
+        const dateStr = r.date || '-';
+        tr.innerHTML = '<td>' + dateStr + '</td><td>' + r.raw_score + '</td><td>' +
+          (data.score !== null ? data.score + '分' : '-') + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      // 滚动到结果卡片
+      document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showToast(msg, type) {
+      const t = document.createElement('div');
+      t.className = 'toast ' + (type || 'info');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2800);
+    }
+
+    // ---- 语音输入 ----
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    var isListening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = 'zh-CN';
+      recognition.interimResults = true;
+      recognition.continuous = false;
+
+      recognition.addEventListener('result', function (e) {
+        var transcript = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript;
+        }
+        document.getElementById('rawScoreInput').value = transcript;
+        // 如果是最终结果，尝试用语音解析器格式化
+        if (e.results[0].isFinal) {
+          var formatted = U.speechToScore(transcript);
+          document.getElementById('rawScoreInput').value = formatted;
+          document.getElementById('micStatus').textContent = '识别结果: ' + transcript;
+        }
+      });
+
+      recognition.addEventListener('error', function (e) {
+        stopListening();
+        document.getElementById('micStatus').textContent = '语音识别失败: ' + e.error;
+        showToast('语音识别失败，请手动输入', 'error');
+      });
+
+      recognition.addEventListener('end', function () {
+        stopListening();
+      });
+    }
+
+    function startListening() {
+      if (!recognition) {
+        showToast('当前浏览器不支持语音识别（请使用 Chrome 或 Edge）', 'error');
+        return;
+      }
+      try {
+        recognition.start();
+        isListening = true;
+        var btn = document.getElementById('btnMic');
+        btn.classList.add('listening');
+        btn.textContent = '🔴';
+        document.getElementById('micStatus').textContent = '正在聆听...请说出成绩';
+        document.getElementById('rawScoreInput').value = '';
+      } catch (e) {
+        showToast('无法启动语音识别', 'error');
+      }
+    }
+
+    function stopListening() {
+      isListening = false;
+      var btn = document.getElementById('btnMic');
+      btn.classList.remove('listening');
+      btn.textContent = '🎤';
+    }
+
+    document.getElementById('btnMic').addEventListener('click', function () {
+      if (isListening) {
+        recognition.abort();
+        stopListening();
+      } else {
+        startListening();
+      }
+    });
+
+    // 启动
+    init().catch(function (e) {
+      showToast('初始化失败：' + e.message, 'error');
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统设置 - 中学体育成绩追踪</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      background: #f0f4f8; min-height: 100vh; color: #333;
+    }
+
+    .container { max-width: 750px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .topbar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    }
+    .topbar a {
+      text-decoration: none; color: #2c5364; font-size: 14px;
+      padding: 6px 14px; border-radius: 20px; background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .topbar h2 { font-size: 22px; color: #1a1a2e; }
+
+    /* ---- 登录 ---- */
+    .login-card {
+      background: #fff; border-radius: 16px; padding: 36px 28px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center;
+      max-width: 400px; margin: 60px auto 0;
+    }
+    .login-card h3 { font-size: 20px; margin-bottom: 20px; color: #2c5364; }
+    .login-card input {
+      width: 100%; padding: 12px 16px; font-size: 15px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; margin-bottom: 12px;
+    }
+    .login-card input:focus { outline: none; border-color: #2c5364; }
+    .login-card .hint { font-size: 12px; color: #bbb; margin-bottom: 16px; }
+
+    .btn {
+      display: block; width: 100%; padding: 14px; font-size: 16px;
+      font-weight: 600; letter-spacing: 1px; border: none; border-radius: 12px;
+      cursor: pointer; color: #fff; background: linear-gradient(135deg, #2c5364, #203a43);
+      transition: transform 0.1s;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-sm {
+      padding: 8px 18px; font-size: 13px; border-radius: 20px;
+      border: 1.5px solid #2c5364; background: #fff; color: #2c5364;
+      cursor: pointer; font-weight: 500; display: inline-block;
+    }
+    .btn-save {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      margin-top: 16px;
+    }
+    .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+
+    /* ---- 仪表盘 ---- */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    .bar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #fff; border-radius: 14px; padding: 14px 20px;
+      margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      flex-wrap: wrap; gap: 10px;
+    }
+    .bar .title { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+
+    /* ---- 标签页 ---- */
+    .tabs {
+      display: flex; gap: 0; margin-bottom: 18px;
+    }
+    .tabs button {
+      flex: 1; padding: 11px 0; font-size: 14px; cursor: pointer;
+      border: 1.5px solid #dde4ed; background: #fff; color: #888;
+      transition: all 0.2s; font-weight: 500;
+    }
+    .tabs button:first-child { border-radius: 10px 0 0 10px; }
+    .tabs button:last-child { border-radius: 0 10px 10px 0; }
+    .tabs button.active {
+      background: #2c5364; color: #fff; border-color: #2c5364; font-weight: 600;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ---- 评分标准管理 ---- */
+    .section {
+      background: #fff; border-radius: 14px; padding: 24px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); margin-bottom: 16px;
+    }
+    .section h3 { color: #2c5364; margin-bottom: 16px; font-size: 16px; }
+
+    .inline-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .inline-row select, .inline-row input {
+      flex: 1; padding: 10px 14px; font-size: 14px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; color: #333;
+    }
+    .inline-row select:focus, .inline-row input:focus {
+      outline: none; border-color: #2c5364;
+    }
+
+    .std-tbl {
+      width: 100%; border-collapse: collapse; font-size: 14px;
+    }
+    .std-tbl th, .std-tbl td {
+      padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center;
+    }
+    .std-tbl th { color: #888; font-weight: 500; background: #fafbfc; font-size: 12px; }
+    .std-tbl input[type="number"] {
+      width: 100%; padding: 8px; text-align: center; font-size: 14px;
+      border: 1.5px solid #dde4ed; border-radius: 8px; background: #fafbfc;
+    }
+    .std-tbl input[type="number"]:focus { outline: none; border-color: #2c5364; background: #fff; }
+    .std-tbl .score-col { font-weight: 700; color: #2c5364; font-size: 16px; }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px; color: #aaa;
+    }
+
+    /* ---- 口令设置 ---- */
+    .pwd-form label { display: block; font-size: 13px; color: #888; margin-bottom: 4px; }
+    .pwd-form input {
+      width: 100%; padding: 12px 14px; font-size: 15px;
+      border: 1.5px solid #dde4ed; border-radius: 10px;
+      background: #fafbfc; margin-bottom: 14px;
+    }
+    .pwd-form input:focus { outline: none; border-color: #2c5364; }
+
+    /* ---- 项目提示 ---- */
+    .proj-info {
+      background: #f8fafb; border-radius: 10px; padding: 12px 16px;
+      margin-bottom: 14px; font-size: 13px; color: #888;
+    }
+    .proj-info strong { color: #333; }
+
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 28px; border-radius: 24px; color: #fff; font-size: 14px;
+      z-index: 999; animation: fadeIn 0.3s; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: #27ae60; }
+    .toast.error { background: #e74c3c; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="topbar">
+      <a href="index.html">← 首页</a>
+      <h2>⚙️ 系统设置</h2>
+    </div>
+
+    <!-- 登录 -->
+    <div class="login-card" id="loginCard">
+      <h3>教师验证</h3>
+      <input id="teacherPwd" type="password" placeholder="请输入教师口令">
+      <div class="hint">默认口令：teacher123</div>
+      <button class="btn" id="btnLogin">验 证</button>
+    </div>
+
+    <!-- 仪表盘 -->
+    <div class="dashboard" id="dashboard">
+      <div class="bar">
+        <span class="title">👨‍🏫 系统设置面板</span>
+        <button class="btn-sm" id="btnLogout">退出</button>
+      </div>
+
+      <!-- 标签页 -->
+      <div class="tabs">
+        <button class="active" data-tab="tabStandards">📋 评分标准</button>
+        <button data-tab="tabPassword">🔑 口令设置</button>
+      </div>
+
+      <!-- 评分标准管理 -->
+      <div class="tab-content active" id="tabStandards">
+        <div class="section">
+          <h3>评分标准管理</h3>
+          <div class="inline-row">
+            <select id="stdProject">
+              <option value="">-- 选择项目 --</option>
+            </select>
+            <select id="stdGender">
+              <option value="男">男生</option>
+              <option value="女">女生</option>
+            </select>
+          </div>
+          <div class="proj-info" id="projInfo"></div>
+          <table class="std-tbl" id="stdTable">
+            <thead><tr><th>分值</th><th>标准值</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="empty-state" id="stdEmpty">请选择项目和性别以查看评分标准</div>
+          <button class="btn btn-save" id="btnSaveStandards">💾 保存修改</button>
+        </div>
+      </div>
+
+      <!-- 口令设置 -->
+      <div class="tab-content" id="tabPassword">
+        <div class="section">
+          <h3>修改教师口令</h3>
+          <div class="pwd-form">
+            <label>当前口令</label>
+            <input id="oldPwd" type="password" placeholder="输入当前口令">
+            <label>新口令</label>
+            <input id="newPwd" type="password" placeholder="输入新口令">
+            <label>确认新口令</label>
+            <input id="confirmPwd" type="password" placeholder="再次输入新口令">
+            <button class="btn btn-save" id="btnChangePwd">🔒 修改口令</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+
+  <script>
+  (function () {
+    var U = window.SportsUtils;
+    var allProjects = {};
+    var currentStandards = []; // 当前加载的评分标准对象
+
+    // ---- 初始化 ----
+    async function init() {
+      try { await U.initDefaultData(); } catch (e) { /* ok */ }
+      var projList = await U.sbFind('Project', {});
+      allProjects = {};
+      projList.forEach(function (p) {
+        allProjects[p.id] = { id: p.id, name: p.name, unit: p.unit, smallerIsBetter: p.smaller_is_better, genderSpecific: p.gender_specific };
+      });
+
+      // 填充项目下拉
+      var sel = document.getElementById('stdProject');
+      projList.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        opt.dataset.unit = p.unit;
+        opt.dataset.smallerIsBetter = p.smaller_is_better ? '1' : '0';
+        sel.appendChild(opt);
+      });
+    }
+
+    // ---- 登录 ----
+    document.getElementById('btnLogin').addEventListener('click', async function () {
+      var pwd = document.getElementById('teacherPwd').value.trim();
+      if (!pwd) { showToast('请输入教师口令', 'error'); return; }
+      var btn = this; btn.disabled = true; btn.textContent = '验证中...';
+      try {
+        var ok = await U.verifyTeacherPassword(pwd);
+        if (!ok) throw new Error('口令错误');
+        // 记录当前口令用于后续修改
+        window._currentTeacherPwd = pwd;
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('dashboard').classList.add('active');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally { btn.disabled = false; btn.textContent = '验 证'; }
+    });
+
+    // ---- 退出 ----
+    document.getElementById('btnLogout').addEventListener('click', function () {
+      document.getElementById('loginCard').style.display = '';
+      document.getElementById('dashboard').classList.remove('active');
+      document.getElementById('teacherPwd').value = '';
+      window._currentTeacherPwd = null;
+    });
+
+    // ---- 标签切换 ----
+    document.querySelectorAll('.tabs button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tabs button').forEach(function (b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(function (tc) { tc.classList.remove('active'); });
+        document.getElementById(this.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ---- 加载评分标准 ----
+    async function loadStandards() {
+      var projId = document.getElementById('stdProject').value;
+      var gender = document.getElementById('stdGender').value;
+      if (!projId) {
+        document.getElementById('stdTable').style.display = 'none';
+        document.getElementById('stdEmpty').style.display = '';
+        document.getElementById('projInfo').innerHTML = '';
+        return;
+      }
+
+      var proj = allProjects[projId];
+
+      // 性别专属项目不允许切换性别
+      var genderSel = document.getElementById('stdGender');
+      if (proj.genderSpecific) {
+        if (proj.name === '800米跑' || proj.name === '一分钟仰卧起坐') {
+          genderSel.value = '女';
+        } else if (proj.name === '1000米跑' || proj.name === '引体向上') {
+          genderSel.value = '男';
+        }
+        genderSel.disabled = true;
+      } else {
+        genderSel.disabled = false;
+      }
+
+      document.getElementById('projInfo').innerHTML =
+        '<strong>' + proj.name + '</strong> · 单位：' + proj.unit +
+        ' · 规则：' + (proj.smallerIsBetter ? '越小越好（成绩越小得分越高）' : '越大越好（成绩越大得分越高）');
+
+      currentStandards = await U.sbFind('ScoreStandard', { projectId: projId, gender: gender });
+      currentStandards.sort(function (a, b) { return b.score - a.score; });
+
+      var tbody = document.querySelector('#stdTable tbody');
+      tbody.innerHTML = '';
+      document.getElementById('stdTable').style.display = '';
+      document.getElementById('stdEmpty').style.display = 'none';
+
+      if (currentStandards.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="2" style="padding:30px;color:#aaa;">暂无评分标准，请先在初始化中创建</td></tr>';
+        return;
+      }
+
+      currentStandards.forEach(function (std, idx) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="score-col">' + std.score + ' 分</td>' +
+          '<td><input type="number" step="any" value="' + std.threshold_value + '" data-idx="' + idx + '" data-id="' + std.id + '"></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('stdProject').addEventListener('change', loadStandards);
+    document.getElementById('stdGender').addEventListener('change', loadStandards);
+
+    // ---- 保存评分标准 ----
+    document.getElementById('btnSaveStandards').addEventListener('click', async function () {
+      var btn = this;
+      btn.disabled = true; btn.textContent = '保存中...';
+      try {
+        var inputs = document.querySelectorAll('#stdTable input[type="number"]');
+        for (var i = 0; i < inputs.length; i++) {
+          var inp = inputs[i];
+          var newVal = parseFloat(inp.value);
+          if (isNaN(newVal)) throw new Error('第 ' + (parseInt(inp.dataset.idx) + 1) + ' 行标准值无效');
+          var std = currentStandards[parseInt(inp.dataset.idx)];
+          if (std.threshold_value !== newVal) {
+            await U.sbUpdate('ScoreStandard', std.id, { threshold_value: newVal });
+          }
+        }
+        showToast('评分标准已保存', 'success');
+        await loadStandards();
+      } catch (err) {
+        showToast('保存失败：' + err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 保存修改';
+      }
+    });
+
+    // ---- 修改口令 ----
+    document.getElementById('btnChangePwd').addEventListener('click', async function () {
+      var oldPwd = document.getElementById('oldPwd').value.trim();
+      var newPwd = document.getElementById('newPwd').value.trim();
+      var confirmPwd = document.getElementById('confirmPwd').value.trim();
+
+      if (!oldPwd) { showToast('请输入当前口令', 'error'); return; }
+      if (!newPwd) { showToast('请输入新口令', 'error'); return; }
+      if (newPwd !== confirmPwd) { showToast('两次新口令不一致', 'error'); return; }
+      if (newPwd.length < 4) { showToast('新口令至少 4 位', 'error'); return; }
+
+      var btn = this;
+      btn.disabled = true; btn.textContent = '修改中...';
+      try {
+        var ok = await U.verifyTeacherPassword(oldPwd);
+        if (!ok) throw new Error('当前口令错误');
+        await U.updateTeacherPassword(newPwd);
+        window._currentTeacherPwd = newPwd;
+        document.getElementById('oldPwd').value = '';
+        document.getElementById('newPwd').value = '';
+        document.getElementById('confirmPwd').value = '';
+        showToast('口令修改成功！', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '🔒 修改口令';
+      }
+    });
+
+    function showToast(msg, type) {
+      var t = document.createElement('div');
+      t.className = 'toast ' + (type || 'success');
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(function () { t.remove(); }, 2800);
+    }
+
+    init().catch(function (e) { showToast('初始化失败：' + e.message, 'error'); });
+  })();
+  </script>
+</body>
+</html>
