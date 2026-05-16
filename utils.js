@@ -1,21 +1,21 @@
 // ============================================================
-// 中学体育成绩追踪系统 — 核心工具库 (Supabase)
+// 中学体育成绩追踪系统 — 核心工具库 (Supabase REST API)
+// 不依赖 Supabase SDK，直接用 fetch() 调用 REST API
+// 无需加载任何国外 CDN
 // ============================================================
 (function () {
   'use strict';
 
-  // --- Supabase 初始化 ---
-  const supabase = window.supabase.createClient(
-    SUPABASE_CONFIG.url,
-    SUPABASE_CONFIG.anonKey
-  );
+  // --- REST API 配置 ---
+  var API_URL = SUPABASE_CONFIG.url + '/rest/v1';
+  var API_HEADERS = {
+    'apikey': SUPABASE_CONFIG.anonKey,
+    'Authorization': 'Bearer ' + SUPABASE_CONFIG.anonKey,
+    'Content-Type': 'application/json',
+  };
 
   // ==================== 时间格式转换 ====================
 
-  /**
-   * 时间/数值解析 → 秒或原始数值
-   * 支持："4'03\"" / "4′03″" / "4:03" / "4.03" / 纯数字
-   */
   function timeToSeconds(str) {
     if (str == null) return null;
     if (typeof str === 'number') return str;
@@ -52,47 +52,81 @@
     return min + "'" + String(sec).padStart(2, '0') + '"';
   }
 
-  // ==================== Supabase 数据操作 ====================
+  // ==================== REST API 数据操作 ====================
 
-  function sb() { return supabase; }
-
-  async function sbFind(table, constraints, extra) {
-    var q = supabase.from(table).select('*');
+  /** 构建查询 URL */
+  function buildUrl(table, constraints, extra) {
+    var url = API_URL + '/' + table + '?select=*';
     for (var k in constraints) {
       if (constraints[k] !== undefined && constraints[k] !== null) {
-        q = q.eq(k, constraints[k]);
+        url += '&' + encodeURIComponent(k) + '=eq.' + encodeURIComponent(constraints[k]);
       }
     }
     if (extra) {
-      if (extra.descending) q = q.order(extra.descending, { ascending: false });
-      if (extra.ascending) q = q.order(extra.ascending, { ascending: true });
+      if (extra.descending) url += '&order=' + encodeURIComponent(extra.descending) + '.desc';
+      if (extra.ascending) url += '&order=' + encodeURIComponent(extra.ascending) + '.asc';
     }
-    q = q.limit(extra && extra.limit ? extra.limit : 1000);
-    var result = await q;
-    if (result.error) throw result.error;
-    return result.data || [];
+    var limit = (extra && extra.limit) ? extra.limit : 1000;
+    url += '&limit=' + limit;
+    return url;
   }
 
+  /** 查询多条 */
+  async function sbFind(table, constraints, extra) {
+    var url = buildUrl(table, constraints, extra);
+    var resp = await fetch(url, { headers: API_HEADERS });
+    if (!resp.ok) {
+      var msg = '';
+      try { var err = await resp.json(); msg = err.message || err.msg || ''; } catch (e) {}
+      throw new Error('查询 ' + table + ' 失败 (HTTP ' + resp.status + ') ' + msg);
+    }
+    return await resp.json();
+  }
+
+  /** 查询单条 */
   async function sbGet(table, id) {
-    var result = await supabase.from(table).select('*').eq('id', id).single();
-    if (result.error) throw result.error;
-    return result.data;
+    var url = API_URL + '/' + table + '?id=eq.' + encodeURIComponent(id) + '&limit=1';
+    var resp = await fetch(url, { headers: API_HEADERS });
+    if (!resp.ok) throw new Error('查询 ' + table + ' 失败');
+    var data = await resp.json();
+    if (!data || data.length === 0) throw new Error(table + ' 记录不存在');
+    return data[0];
   }
 
+  /** 创建 */
   async function sbCreate(table, record) {
-    var result = await supabase.from(table).insert([record]).select();
-    if (result.error) throw result.error;
-    return result.data[0];
+    var headers = Object.assign({}, API_HEADERS, { 'Prefer': 'return=representation' });
+    var resp = await fetch(API_URL + '/' + table, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(record),
+    });
+    if (!resp.ok) {
+      var msg = '';
+      try { var err = await resp.json(); msg = err.message || ''; } catch (e) {}
+      throw new Error('创建 ' + table + ' 失败 (HTTP ' + resp.status + ') ' + msg);
+    }
+    // 有些版本不返回数据
+    try { var created = await resp.json(); if (created && created.length) return created[0]; } catch (e) {}
+    return record;
   }
 
+  /** 更新 */
   async function sbUpdate(table, id, record) {
-    var result = await supabase.from(table).update(record).eq('id', id);
-    if (result.error) throw result.error;
+    var url = API_URL + '/' + table + '?id=eq.' + encodeURIComponent(id);
+    var resp = await fetch(url, {
+      method: 'PATCH',
+      headers: API_HEADERS,
+      body: JSON.stringify(record),
+    });
+    if (!resp.ok) throw new Error('更新 ' + table + ' 失败 (HTTP ' + resp.status + ')');
   }
 
+  /** 删除 */
   async function sbDelete(table, id) {
-    var result = await supabase.from(table).delete().eq('id', id);
-    if (result.error) throw result.error;
+    var url = API_URL + '/' + table + '?id=eq.' + encodeURIComponent(id);
+    var resp = await fetch(url, { method: 'DELETE', headers: API_HEADERS });
+    if (!resp.ok) throw new Error('删除 ' + table + ' 失败 (HTTP ' + resp.status + ')');
   }
 
   // ==================== 评分计算 ====================
@@ -222,85 +256,30 @@
   ];
 
   var FEMALE_STANDARDS = {
-    '800米跑': [
-      [10, 205], [9, 215], [8, 225], [7, 235], [6, 245],
-      [5, 255], [4, 265], [3, 275], [2, 285], [1, 295],
-    ],
-    '足球运球': [
-      [10, 10.1], [9, 11.0], [8, 11.9], [7, 12.9], [6, 14.4],
-      [5, 15.4], [4, 16.8], [3, 17.7], [2, 18.6], [1, 19.7],
-    ],
-    '50米跑': [
-      [10, 8.1], [9, 8.3], [8, 8.5], [7, 8.7], [6, 8.9],
-      [5, 9.1], [4, 9.5], [3, 9.9], [2, 10.5], [1, 10.9],
-    ],
-    '立定跳远': [
-      [10, 1.97], [9, 1.89], [8, 1.81], [7, 1.73], [6, 1.65],
-      [5, 1.57], [4, 1.49], [3, 1.41], [2, 1.33], [1, 1.21],
-    ],
-    '一分钟跳绳': [
-      [10, 170], [9, 160], [8, 150], [7, 140], [6, 130],
-      [5, 120], [4, 110], [3, 100], [2, 90], [1, 80],
-    ],
-    '掷实心球': [
-      [10, 6.70], [9, 6.30], [8, 5.90], [7, 5.50], [6, 5.10],
-      [5, 4.70], [4, 4.30], [3, 3.90], [2, 3.50], [1, 3.10],
-    ],
-    '篮球运球投篮': [
-      [10, 26], [9, 32], [8, 40], [7, 46], [6, 51],
-      [5, 56], [4, 61], [3, 66], [2, 70], [1, 85],
-    ],
-    '一分钟仰卧起坐': [
-      [10, 50], [9, 46], [8, 42], [7, 38], [6, 34],
-      [5, 30], [4, 26], [3, 22], [2, 18], [1, 14],
-    ],
-    '游泳': [
-      [10, 100], [9, 90], [8, 80], [7, 70], [6, 60],
-      [5, 50], [4, 40], [3, 30], [2, 25], [1, 0],
-    ],
+    '800米跑': [ [10,205],[9,215],[8,225],[7,235],[6,245],[5,255],[4,265],[3,275],[2,285],[1,295] ],
+    '足球运球': [ [10,10.1],[9,11.0],[8,11.9],[7,12.9],[6,14.4],[5,15.4],[4,16.8],[3,17.7],[2,18.6],[1,19.7] ],
+    '50米跑': [ [10,8.1],[9,8.3],[8,8.5],[7,8.7],[6,8.9],[5,9.1],[4,9.5],[3,9.9],[2,10.5],[1,10.9] ],
+    '立定跳远': [ [10,1.97],[9,1.89],[8,1.81],[7,1.73],[6,1.65],[5,1.57],[4,1.49],[3,1.41],[2,1.33],[1,1.21] ],
+    '一分钟跳绳': [ [10,170],[9,160],[8,150],[7,140],[6,130],[5,120],[4,110],[3,100],[2,90],[1,80] ],
+    '掷实心球': [ [10,6.70],[9,6.30],[8,5.90],[7,5.50],[6,5.10],[5,4.70],[4,4.30],[3,3.90],[2,3.50],[1,3.10] ],
+    '篮球运球投篮': [ [10,26],[9,32],[8,40],[7,46],[6,51],[5,56],[4,61],[3,66],[2,70],[1,85] ],
+    '一分钟仰卧起坐': [ [10,50],[9,46],[8,42],[7,38],[6,34],[5,30],[4,26],[3,22],[2,18],[1,14] ],
+    '游泳': [ [10,100],[9,90],[8,80],[7,70],[6,60],[5,50],[4,40],[3,30],[2,25],[1,0] ],
   };
 
   var MALE_STANDARDS = {
-    '1000米跑': [
-      [10, 220], [9, 230], [8, 240], [7, 250], [6, 260],
-      [5, 270], [4, 280], [3, 290], [2, 300], [1, 310],
-    ],
-    '足球运球': [
-      [10, 9.1], [9, 10.0], [8, 10.7], [7, 11.5], [6, 12.8],
-      [5, 13.6], [4, 14.6], [3, 15.2], [2, 15.9], [1, 16.8],
-    ],
-    '50米跑': [
-      [10, 7.1], [9, 7.3], [8, 7.5], [7, 7.7], [6, 7.9],
-      [5, 8.1], [4, 8.3], [3, 8.7], [2, 9.3], [1, 9.7],
-    ],
-    '立定跳远': [
-      [10, 2.46], [9, 2.38], [8, 2.30], [7, 2.22], [6, 2.14],
-      [5, 2.06], [4, 1.98], [3, 1.90], [2, 1.82], [1, 1.70],
-    ],
-    '一分钟跳绳': [
-      [10, 180], [9, 170], [8, 160], [7, 150], [6, 140],
-      [5, 130], [4, 120], [3, 110], [2, 100], [1, 90],
-    ],
-    '掷实心球': [
-      [10, 9.80], [9, 9.20], [8, 8.60], [7, 8.00], [6, 7.40],
-      [5, 6.80], [4, 6.20], [3, 5.60], [2, 5.00], [1, 4.40],
-    ],
-    '篮球运球投篮': [
-      [10, 20], [9, 24], [8, 32], [7, 38], [6, 43],
-      [5, 48], [4, 53], [3, 57], [2, 61], [1, 69],
-    ],
-    '引体向上': [
-      [10, 10], [9, 9], [8, 8], [7, 7], [6, 6],
-      [5, 5], [4, 4], [3, 3], [2, 2], [1, 1],
-    ],
-    '游泳': [
-      [10, 100], [9, 90], [8, 80], [7, 70], [6, 60],
-      [5, 50], [4, 40], [3, 30], [2, 25], [1, 0],
-    ],
+    '1000米跑': [ [10,220],[9,230],[8,240],[7,250],[6,260],[5,270],[4,280],[3,290],[2,300],[1,310] ],
+    '足球运球': [ [10,9.1],[9,10.0],[8,10.7],[7,11.5],[6,12.8],[5,13.6],[4,14.6],[3,15.2],[2,15.9],[1,16.8] ],
+    '50米跑': [ [10,7.1],[9,7.3],[8,7.5],[7,7.7],[6,7.9],[5,8.1],[4,8.3],[3,8.7],[2,9.3],[1,9.7] ],
+    '立定跳远': [ [10,2.46],[9,2.38],[8,2.30],[7,2.22],[6,2.14],[5,2.06],[4,1.98],[3,1.90],[2,1.82],[1,1.70] ],
+    '一分钟跳绳': [ [10,180],[9,170],[8,160],[7,150],[6,140],[5,130],[4,120],[3,110],[2,100],[1,90] ],
+    '掷实心球': [ [10,9.80],[9,9.20],[8,8.60],[7,8.00],[6,7.40],[5,6.80],[4,6.20],[3,5.60],[2,5.00],[1,4.40] ],
+    '篮球运球投篮': [ [10,20],[9,24],[8,32],[7,38],[6,43],[5,48],[4,53],[3,57],[2,61],[1,69] ],
+    '引体向上': [ [10,10],[9,9],[8,8],[7,7],[6,6],[5,5],[4,4],[3,3],[2,2],[1,1] ],
+    '游泳': [ [10,100],[9,90],[8,80],[7,70],[6,60],[5,50],[4,40],[3,30],[2,25],[1,0] ],
   };
 
   async function initDefaultData() {
-    // 1. 初始化项目
     var existingProjects = await sbFind('Project', {});
     var projectMap = {};
     if (existingProjects.length === 0) {
@@ -321,7 +300,6 @@
       }
     }
 
-    // 2. 初始化评分标准
     var existingStandards = await sbFind('ScoreStandard', {});
     if (existingStandards.length === 0) {
       var genders = [
@@ -348,7 +326,6 @@
       }
     }
 
-    // 3. 初始化教师口令
     var pwdCfg = await sbFind('AppConfig', { key: 'teacherPassword' });
     if (pwdCfg.length === 0) {
       await sbCreate('AppConfig', { key: 'teacherPassword', value: 'teacher123' });
@@ -357,7 +334,7 @@
     return projectMap;
   }
 
-  // ==================== 教师口令验证 ====================
+  // ==================== 教师口令 ====================
 
   async function verifyTeacherPassword(inputPwd) {
     var cfg = await sbFind('AppConfig', { key: 'teacherPassword' });
@@ -377,31 +354,18 @@
   // ==================== 语音输入解析 ====================
 
   var CN_NUM_MAP = {
-    '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
-    '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
-    '百': 100,
+    '零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,
   };
 
   function cnNumToInt(text) {
-    var result = 0;
-    var temp = 0;
+    var result = 0, temp = 0;
     for (var i = 0; i < text.length; i++) {
       var ch = text[i];
       if (CN_NUM_MAP[ch] !== undefined) {
         var v = CN_NUM_MAP[ch];
-        if (v === 10) {
-          if (temp === 0) temp = 1;
-          temp *= 10;
-          result += temp;
-          temp = 0;
-        } else if (v === 100) {
-          if (temp === 0) temp = 1;
-          temp *= 100;
-          result += temp;
-          temp = 0;
-        } else {
-          temp = v;
-        }
+        if (v === 10) { if (temp === 0) temp = 1; temp *= 10; result += temp; temp = 0; }
+        else if (v === 100) { if (temp === 0) temp = 1; temp *= 100; result += temp; temp = 0; }
+        else { temp = v; }
       }
     }
     result += temp;
@@ -434,18 +398,13 @@
 
     var meterMatch = text.match(/^(.+)米(.+)$/);
     if (meterMatch) {
-      var m = cnNumToInt(meterMatch[1]);
-      var cm = cnNumToInt(meterMatch[2].replace(/零/g, ''));
-      return m + '.' + cm.toString().padStart(2, '0');
+      return cnNumToInt(meterMatch[1]) + '.' + cnNumToInt(meterMatch[2].replace(/零/g, '')).toString().padStart(2, '0');
     }
 
     var numMatch = text.match(/^([零一二两三四五六七八九十百]+)[个次米秒]?$/);
-    if (numMatch) {
-      return cnNumToInt(numMatch[1]).toString();
-    }
+    if (numMatch) return cnNumToInt(numMatch[1]).toString();
 
     if (/^[\d.]+$/.test(text)) return text;
-
     return text;
   }
 
